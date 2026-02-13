@@ -24,15 +24,15 @@ pub enum OrderStatus {
 
 #[derive(Debug)]
 pub struct Order {
-    pub id: Uuid,
-    pub user_id: u64,
-    pub pair_id: u64,
-    pub side: OrderSide,
-    pub order_type: OrderType,
-    pub price: Option<Decimal>,
-    pub quantity: Decimal,
-    pub remaining_quantity: Decimal,
-    pub status: OrderStatus,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime
+    id: Uuid,
+    user_id: u64,
+    pair_id: u64,
+    side: OrderSide,
+    order_type: OrderType,
+    price: Option<Decimal>,
+    quantity: Decimal,
+    remaining_quantity: Decimal,
+    status: OrderStatus,
+    created_at: NaiveDateTime,
+    updated_at: NaiveDateTime
 }
