@@ -1,19 +1,20 @@
 use rust_decimal::Decimal;
 use chrono::NaiveDateTime;
+use uuid::Uuid;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum OrderSide {
     Buy,
     Sell
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum OrderType {
     Market,
     Limit
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum OrderStatus {
     Open,
     PartiallyFilled,
@@ -23,7 +24,7 @@ pub enum OrderStatus {
 
 #[derive(Debug)]
 pub struct Order {
-    pub id: u64,
+    pub id: Uuid,
     pub user_id: u64,
     pub pair_id: u64,
     pub side: OrderSide,
