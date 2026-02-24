@@ -1,10 +1,10 @@
-use crate::models::order::{self, Order};
+use crate::models::order::{self, Order, OrderSide};
 use rust_decimal::Decimal;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use uuid::Uuid;
 
 pub struct OrderBook {
-    index: HashMap<Uuid, Decimal>,
+    index: HashMap<Uuid, (Decimal, OrderSide)>, // order_id -> (price, OrderSide)
     bids: BTreeMap<Decimal, VecDeque<Order>>,
     asks: BTreeMap<Decimal, VecDeque<Order>>,
 }
@@ -25,7 +25,7 @@ impl OrderBook {
             None => return Err("Limit order must have a price".into()),
         };
 
-        self.index.insert(order.id(), price);
+        self.index.insert(order.id(), (price, order.side().clone()));
         match order.side() {
             order::OrderSide::Buy => {
                 self.bids
@@ -44,13 +44,30 @@ impl OrderBook {
         Ok(())
     }
 
-    pub fn cancel_order(&mut self, order_id: &Uuid) -> bool {
-        if self.index.contains_key(order_id) {
-            self.index.remove(order_id);
-            true
-        } else {
-            false
+    pub fn cancel_order(&mut self, order_id: &Uuid) -> Result<Order, String> {
+        let (price, side) = match self.index.remove(order_id) {
+            Some(value) => value,
+            None => return Err("Order not found".into()),
+        };
+
+        let book = match side {
+            order::OrderSide::Buy => &mut self.bids,
+            order::OrderSide::Sell => &mut self.asks,
+        };
+
+        if let Some(orders) = book.get_mut(&price) {
+            if let Some(pos) = orders.iter().position(|o| o.id() == *order_id) {
+                let order = orders.remove(pos).unwrap();
+
+                if orders.is_empty() {
+                    book.remove(&price);
+                }
+
+                return Ok(order);
+            }
         }
+
+        Err("Order not found in book".into())
     }
 
     pub fn best_bid(&self) -> Option<Decimal> {
