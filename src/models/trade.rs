@@ -1,6 +1,6 @@
-use uuid::Uuid;
-use rust_decimal::Decimal;
 use chrono::NaiveDateTime;
+use rust_decimal::Decimal;
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct Trade {
