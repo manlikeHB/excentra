@@ -1,4 +1,7 @@
-use crate::models::order::{self, Order, OrderSide};
+use crate::{
+    error::EngineError,
+    models::order::{self, Order, OrderSide},
+};
 use rust_decimal::Decimal;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use uuid::Uuid;
@@ -18,11 +21,11 @@ impl OrderBook {
         }
     }
 
-    pub fn add_limit_order(&mut self, order: Order) -> Result<(), String> {
+    pub fn add_limit_order(&mut self, order: Order) -> Result<(), EngineError> {
         // get price
         let price = match order.price() {
             Some(price) => price,
-            None => return Err("Limit order must have a price".into()),
+            None => return Err(EngineError::MissingPrice),
         };
 
         self.index.insert(order.id(), (price, order.side().clone()));
@@ -44,10 +47,10 @@ impl OrderBook {
         Ok(())
     }
 
-    pub fn cancel_order(&mut self, order_id: &Uuid) -> Result<Order, String> {
+    pub fn cancel_order(&mut self, order_id: &Uuid) -> Result<Order, EngineError> {
         let (price, side) = match self.index.remove(order_id) {
             Some(value) => value,
-            None => return Err("Order not found".into()),
+            None => return Err(EngineError::OrderNotFound),
         };
 
         let book = match side {
@@ -67,7 +70,8 @@ impl OrderBook {
             }
         }
 
-        Err("Order not found in book".into())
+        // Err("Order not found in book".into())
+        panic!("Inconsistent state: order found in index but not in book");
     }
 
     pub fn best_bid(&self) -> Option<Decimal> {
