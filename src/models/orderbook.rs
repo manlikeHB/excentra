@@ -21,6 +21,14 @@ impl OrderBook {
         }
     }
 
+    pub fn asks(&mut self) -> &mut BTreeMap<Decimal, VecDeque<Order>> {
+        &mut self.asks
+    }
+
+    pub fn bids(&mut self) -> &mut BTreeMap<Decimal, VecDeque<Order>> {
+        &mut self.bids
+    }
+
     pub fn add_limit_order(&mut self, order: Order) -> Result<(), EngineError> {
         // get price
         let price = match order.price() {

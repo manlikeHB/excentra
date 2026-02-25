@@ -77,4 +77,26 @@ impl Order {
     pub fn side(&self) -> &OrderSide {
         &self.side
     }
+
+    pub fn quantity(&self) -> Decimal {
+        self.quantity
+    }
+
+    pub fn remaining_quantity(&self) -> Decimal {
+        self.remaining_quantity
+    }
+
+    pub fn pair_id(&self) -> Uuid {
+        self.pair_id
+    }
+
+    pub fn reduce_quantity(&mut self, amount: Decimal) {
+        self.remaining_quantity -= amount;
+        if self.remaining_quantity == Decimal::ZERO {
+            self.status = OrderStatus::Filled;
+        } else {
+            self.status = OrderStatus::PartiallyFilled;
+        }
+        self.updated_at = chrono::Utc::now().naive_utc();
+    }
 }
