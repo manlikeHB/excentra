@@ -184,12 +184,16 @@ impl OrderBook {
         if order.remaining_quantity() != Decimal::zero() {
             match order.side() {
                 OrderSide::Buy => {
+                    self.index
+                        .insert(order.id(), (incoming_price, *order.side()));
                     self.bids
                         .entry(incoming_price)
                         .or_default()
                         .push_back(order.clone());
                 }
                 OrderSide::Sell => {
+                    self.index
+                        .insert(order.id(), (incoming_price, *order.side()));
                     self.asks
                         .entry(incoming_price)
                         .or_default()

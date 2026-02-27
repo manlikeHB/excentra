@@ -18,4 +18,16 @@ impl MatchResult {
             remaining_quantity: quantity,
         }
     }
+
+    pub fn trades(&self) -> &Vec<Trade> {
+        &self.trades
+    }
+
+    pub fn status(&self) -> &OrderStatus {
+        &self.status
+    }
+
+    pub fn remaining_quantity(&self) -> Decimal {
+        self.remaining_quantity
+    }
 }

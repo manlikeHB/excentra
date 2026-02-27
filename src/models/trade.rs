@@ -33,4 +33,19 @@ impl Trade {
             created_at,
         }
     }
+
+    pub fn price(&self) -> Decimal {
+        self.price
+    }
+
+    pub fn quantity(&self) -> Decimal {
+        self.quantity
+    }
+
+    pub fn buy_order_id(&self) -> Uuid {
+        self.buy_order_id
+    }
+    pub fn sell_order_id(&self) -> Uuid {
+        self.sell_order_id
+    }
 }
