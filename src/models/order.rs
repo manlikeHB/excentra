@@ -2,19 +2,19 @@ use chrono::NaiveDateTime;
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum OrderSide {
     Buy,
     Sell,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum OrderType {
     Market,
     Limit,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum OrderStatus {
     Open,
     PartiallyFilled,
@@ -22,7 +22,7 @@ pub enum OrderStatus {
     Cancelled,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Order {
     id: Uuid,
     user_id: Uuid,
@@ -98,5 +98,9 @@ impl Order {
             self.status = OrderStatus::PartiallyFilled;
         }
         self.updated_at = chrono::Utc::now().naive_utc();
+    }
+
+    pub fn status(&self) -> OrderStatus {
+        self.status
     }
 }
