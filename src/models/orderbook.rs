@@ -104,71 +104,78 @@ impl OrderBook {
     fn match_limit_order(&mut self, order: &mut Order) -> Result<MatchResult, EngineError> {
         let mut trades = Vec::new();
 
-        let side = match order.side() {
-            OrderSide::Buy => &mut self.asks,
-            OrderSide::Sell => &mut self.bids,
-        };
-
         let incoming_price = match order.price() {
             Some(p) => p,
             None => return Err(EngineError::MissingPrice),
         };
 
-        for (&book_price, book) in side.iter_mut() {
-            if book_price <= incoming_price {
-                while order.remaining_quantity() != Decimal::ZERO {
-                    let book_order = match book.front_mut() {
-                        Some(o) => o,
-                        None => break,
-                    };
-                    let traded_quantity = book_order
-                        .remaining_quantity()
-                        .min(order.remaining_quantity());
+        let (side, prices) = match order.side() {
+            OrderSide::Buy => {
+                let side = &mut self.asks;
+                let prices: Vec<Decimal> = side.keys().cloned().collect();
+                (side, prices)
+            }
+            OrderSide::Sell => {
+                let side = &mut self.bids;
+                let prices: Vec<Decimal> = side.keys().rev().cloned().collect();
+                (side, prices)
+            }
+        };
 
-                    // subtract traded quantity from incoming order and ask order
-                    order.reduce_quantity(traded_quantity);
-                    book_order.reduce_quantity(traded_quantity);
+        for book_price in prices {
+            let should_match = match order.side() {
+                // buying at the wanted price or lower
+                OrderSide::Buy => book_price <= incoming_price,
+                // selling at the wanted price or higher
+                OrderSide::Sell => book_price >= incoming_price,
+            };
 
-                    let trade = match order.side() {
-                        OrderSide::Buy => Trade::new(
-                            Uuid::new_v4(),
-                            order.pair_id(),
-                            order.id(),
-                            book_order.id(),
-                            book_price,
-                            traded_quantity,
-                            chrono::Utc::now().naive_utc(),
-                        ),
-                        OrderSide::Sell => Trade::new(
-                            Uuid::new_v4(),
-                            order.pair_id(),
-                            book_order.id(),
-                            order.id(),
-                            book_price,
-                            traded_quantity,
-                            chrono::Utc::now().naive_utc(),
-                        ),
-                    };
+            if let Some(book) = side.get_mut(&book_price) {
+                if should_match {
+                    while order.remaining_quantity() != Decimal::ZERO {
+                        let book_order = match book.front_mut() {
+                            Some(o) => o,
+                            None => break,
+                        };
+                        let traded_quantity = book_order
+                            .remaining_quantity()
+                            .min(order.remaining_quantity());
 
-                    let trade = Trade::new(
-                        Uuid::new_v4(),
-                        order.pair_id(),
-                        order.id(),
-                        book_order.id(),
-                        book_price,
-                        traded_quantity,
-                        chrono::Utc::now().naive_utc(),
-                    );
+                        // subtract traded quantity from incoming order and ask order
+                        order.reduce_quantity(traded_quantity);
+                        book_order.reduce_quantity(traded_quantity);
 
-                    trades.push(trade);
+                        let trade = match order.side() {
+                            OrderSide::Buy => Trade::new(
+                                Uuid::new_v4(),
+                                order.pair_id(),
+                                order.id(),
+                                book_order.id(),
+                                book_price,
+                                traded_quantity,
+                                chrono::Utc::now().naive_utc(),
+                            ),
+                            OrderSide::Sell => Trade::new(
+                                Uuid::new_v4(),
+                                order.pair_id(),
+                                book_order.id(),
+                                order.id(),
+                                book_price,
+                                traded_quantity,
+                                chrono::Utc::now().naive_utc(),
+                            ),
+                        };
 
-                    if book_order.remaining_quantity() == Decimal::ZERO {
-                        self.index.remove(&book_order.id());
-                        book.pop_front();
+                        trades.push(trade);
+
+                        if book_order.remaining_quantity() == Decimal::ZERO {
+                            self.index.remove(&book_order.id());
+                            book.pop_front();
+                        }
                     }
+                } else {
+                    break;
                 }
-            } else {
-                break;
             }
         }
 
