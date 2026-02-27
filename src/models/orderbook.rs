@@ -97,17 +97,55 @@ impl OrderBook {
     pub fn match_order(&mut self, order: &mut Order) -> Result<MatchResult, EngineError> {
         match order.order_type() {
             OrderType::Limit => self.match_limit_order(order),
-            OrderType::Market => todo!(),
+            OrderType::Market => self.match_market_order(order),
         }
     }
 
     fn match_limit_order(&mut self, order: &mut Order) -> Result<MatchResult, EngineError> {
-        let mut trades = Vec::new();
-
         let incoming_price = match order.price() {
             Some(p) => p,
             None => return Err(EngineError::MissingPrice),
         };
+
+        let match_result = self.execute_match(order, Some(incoming_price))?;
+
+        // add order as a resting order in book when partially filled
+        if order.remaining_quantity() != Decimal::zero() {
+            match order.side() {
+                OrderSide::Buy => {
+                    self.index
+                        .insert(order.id(), (incoming_price, *order.side()));
+                    self.bids
+                        .entry(incoming_price)
+                        .or_default()
+                        .push_back(order.clone());
+                }
+                OrderSide::Sell => {
+                    self.index
+                        .insert(order.id(), (incoming_price, *order.side()));
+                    self.asks
+                        .entry(incoming_price)
+                        .or_default()
+                        .push_back(order.clone());
+                }
+            }
+        }
+
+        Ok(match_result)
+    }
+
+    fn match_market_order(&mut self, order: &mut Order) -> Result<MatchResult, EngineError> {
+        let match_result = self.execute_match(order, None)?;
+
+        Ok(match_result)
+    }
+
+    fn execute_match(
+        &mut self,
+        order: &mut Order,
+        incoming_price: Option<Decimal>,
+    ) -> Result<MatchResult, EngineError> {
+        let mut trades = Vec::new();
 
         let (side, prices) = match order.side() {
             OrderSide::Buy => {
@@ -123,11 +161,16 @@ impl OrderBook {
         };
 
         for book_price in prices {
-            let should_match = match order.side() {
-                // buying at the wanted price or lower
-                OrderSide::Buy => book_price <= incoming_price,
-                // selling at the wanted price or higher
-                OrderSide::Sell => book_price >= incoming_price,
+            let should_match = match incoming_price {
+                Some(p) => {
+                    match order.side() {
+                        // buying at the wanted price or lower
+                        OrderSide::Buy => book_price <= p,
+                        // selling at the wanted price or higher
+                        OrderSide::Sell => book_price >= p,
+                    }
+                }
+                None => true,
             };
 
             if let Some(book) = side.get_mut(&book_price) {
@@ -180,27 +223,6 @@ impl OrderBook {
         }
 
         side.retain(|_, order| !order.is_empty());
-
-        if order.remaining_quantity() != Decimal::zero() {
-            match order.side() {
-                OrderSide::Buy => {
-                    self.index
-                        .insert(order.id(), (incoming_price, *order.side()));
-                    self.bids
-                        .entry(incoming_price)
-                        .or_default()
-                        .push_back(order.clone());
-                }
-                OrderSide::Sell => {
-                    self.index
-                        .insert(order.id(), (incoming_price, *order.side()));
-                    self.asks
-                        .entry(incoming_price)
-                        .or_default()
-                        .push_back(order.clone());
-                }
-            }
-        }
 
         let match_result = MatchResult::new(trades, order.status(), order.remaining_quantity());
 
