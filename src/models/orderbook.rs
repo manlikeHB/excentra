@@ -2,7 +2,7 @@ use crate::{
     engine::matcher::MatchResult,
     error::EngineError,
     models::{
-        order::{self, Order, OrderSide},
+        order::{self, Order, OrderSide, OrderType},
         trade::Trade,
     },
 };
@@ -94,144 +94,20 @@ impl OrderBook {
         self.asks.keys().next().cloned()
     }
 
-    pub fn match_limit_order(
-        &mut self,
-        incoming_order: &mut Order,
-    ) -> Result<MatchResult, EngineError> {
-        match incoming_order.side() {
-            OrderSide::Buy => {
-                let mut trades = Vec::new();
-
-                let incoming_price = match incoming_order.price() {
-                    Some(p) => p,
-                    None => return Err(EngineError::MissingPrice),
-                };
-
-                for (&ask_price, ask_book) in self.asks.iter_mut() {
-                    if ask_price <= incoming_price {
-                        while incoming_order.remaining_quantity() != Decimal::ZERO {
-                            let ask_order = match ask_book.front_mut() {
-                                Some(o) => o,
-                                None => break,
-                            };
-                            let traded_quantity = ask_order
-                                .remaining_quantity()
-                                .min(incoming_order.remaining_quantity());
-
-                            // subtract traded quantity from incoming order and ask order
-                            incoming_order.reduce_quantity(traded_quantity);
-                            ask_order.reduce_quantity(traded_quantity);
-
-                            let trade = Trade::new(
-                                Uuid::new_v4(),
-                                incoming_order.pair_id(),
-                                incoming_order.id(),
-                                ask_order.id(),
-                                ask_price,
-                                traded_quantity,
-                                chrono::Utc::now().naive_utc(),
-                            );
-
-                            trades.push(trade);
-
-                            if ask_order.remaining_quantity() == Decimal::ZERO {
-                                self.index.remove(&ask_order.id());
-                                ask_book.pop_front();
-                            }
-                        }
-                    } else {
-                        break;
-                    }
-                }
-
-                self.asks.retain(|_, order| !order.is_empty());
-
-                if incoming_order.remaining_quantity() != Decimal::zero() {
-                    self.bids
-                        .entry(incoming_price)
-                        .or_default()
-                        .push_back(incoming_order.clone());
-                }
-
-                let match_result = MatchResult::new(
-                    trades,
-                    incoming_order.status(),
-                    incoming_order.remaining_quantity(),
-                );
-
-                Ok(match_result)
-            }
-            OrderSide::Sell => {
-                let mut trades = Vec::new();
-
-                let incoming_price = match incoming_order.price() {
-                    Some(p) => p,
-                    None => return Err(EngineError::MissingPrice),
-                };
-
-                for (&bid_price, bid_book) in self.bids.iter_mut() {
-                    if bid_price >= incoming_price {
-                        while incoming_order.remaining_quantity() != Decimal::ZERO {
-                            let bid_order = match bid_book.front_mut() {
-                                Some(o) => o,
-                                None => break,
-                            };
-                            let traded_quantity = bid_order
-                                .remaining_quantity()
-                                .min(incoming_order.remaining_quantity());
-
-                            // subtract traded quantity from incoming order and ask order
-                            incoming_order.reduce_quantity(traded_quantity);
-                            bid_order.reduce_quantity(traded_quantity);
-
-                            let trade = Trade::new(
-                                Uuid::new_v4(),
-                                incoming_order.pair_id(),
-                                bid_order.id(),
-                                incoming_order.id(),
-                                bid_price,
-                                traded_quantity,
-                                chrono::Utc::now().naive_utc(),
-                            );
-
-                            trades.push(trade);
-
-                            if bid_order.remaining_quantity() == Decimal::ZERO {
-                                self.index.remove(&bid_order.id());
-                                bid_book.pop_front();
-                            }
-                        }
-                    } else {
-                        break;
-                    }
-                }
-
-                self.bids.retain(|_, order| !order.is_empty());
-
-                if incoming_order.remaining_quantity() != Decimal::zero() {
-                    self.asks
-                        .entry(incoming_price)
-                        .or_default()
-                        .push_back(incoming_order.clone());
-                }
-
-                let match_result = MatchResult::new(
-                    trades,
-                    incoming_order.status(),
-                    incoming_order.remaining_quantity(),
-                );
-
-                Ok(match_result)
-            }
+    pub fn match_order(&mut self, order: &mut Order) -> Result<MatchResult, EngineError> {
+        match order.order_type() {
+            OrderType::Limit => self.match_limit_order(order),
+            OrderType::Market => todo!(),
         }
     }
 
-    fn match_limit_order_refac(
-        &mut self,
-        side: &mut BTreeMap<Decimal, VecDeque<Order>>,
-        order: &mut Order,
-    ) -> Result<MatchResult, EngineError> {
+    fn match_limit_order(&mut self, order: &mut Order) -> Result<MatchResult, EngineError> {
         let mut trades = Vec::new();
+
+        let side = match order.side() {
+            OrderSide::Buy => &mut self.asks,
+            OrderSide::Sell => &mut self.bids,
+        };
 
         let incoming_price = match order.price() {
             Some(p) => p,

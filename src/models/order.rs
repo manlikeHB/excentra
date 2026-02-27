@@ -103,4 +103,8 @@ impl Order {
     pub fn status(&self) -> OrderStatus {
         self.status
     }
+
+    pub fn order_type(&self) -> OrderType {
+        self.order_type
+    }
 }
