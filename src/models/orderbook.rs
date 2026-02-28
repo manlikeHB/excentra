@@ -2,7 +2,7 @@ use crate::{
     engine::matcher::MatchResult,
     error::EngineError,
     models::{
-        order::{self, Order, OrderSide, OrderType},
+        order::{self, Order, OrderSide, OrderStatus, OrderType},
         trade::Trade,
     },
 };
@@ -83,7 +83,7 @@ impl OrderBook {
         }
 
         // Err("Order not found in book".into())
-        panic!("Inconsistent state: order found in index but not in book");
+        panic!("Inconsistent state: order found in index but not in book"); // TODO: remove panic
     }
 
     pub fn best_bid(&self) -> Option<Decimal> {
@@ -107,7 +107,7 @@ impl OrderBook {
             None => return Err(EngineError::MissingPrice),
         };
 
-        let match_result = self.execute_match(order, Some(incoming_price))?;
+        let trades = self.execute_match(order, Some(incoming_price))?;
 
         // add order as a resting order in book when partially filled
         if order.remaining_quantity() != Decimal::zero() {
@@ -131,11 +131,20 @@ impl OrderBook {
             }
         }
 
+        let match_result = MatchResult::new(trades, order.status(), order.remaining_quantity());
+
         Ok(match_result)
     }
 
     fn match_market_order(&mut self, order: &mut Order) -> Result<MatchResult, EngineError> {
-        let match_result = self.execute_match(order, None)?;
+        let trades = self.execute_match(order, None)?;
+
+        // cancel order when partially filled and no more liquidity in book
+        if order.remaining_quantity() != Decimal::zero() {
+            order.set_status(OrderStatus::Cancelled);
+        }
+
+        let match_result = MatchResult::new(trades, order.status(), order.remaining_quantity());
 
         Ok(match_result)
     }
@@ -144,7 +153,7 @@ impl OrderBook {
         &mut self,
         order: &mut Order,
         incoming_price: Option<Decimal>,
-    ) -> Result<MatchResult, EngineError> {
+    ) -> Result<Vec<Trade>, EngineError> {
         let mut trades = Vec::new();
 
         let (side, prices) = match order.side() {
@@ -224,8 +233,6 @@ impl OrderBook {
 
         side.retain(|_, order| !order.is_empty());
 
-        let match_result = MatchResult::new(trades, order.status(), order.remaining_quantity());
-
-        Ok(match_result)
+        Ok(trades)
     }
 }

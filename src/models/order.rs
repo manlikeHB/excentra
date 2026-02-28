@@ -107,4 +107,8 @@ impl Order {
     pub fn order_type(&self) -> OrderType {
         self.order_type
     }
+
+    pub fn set_status(&mut self, status: OrderStatus) {
+        self.status = status
+    }
 }

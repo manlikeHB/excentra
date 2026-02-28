@@ -39,6 +39,14 @@ mod orderbook_tests {
         make_order(OrderSide::Sell, OrderType::Limit, Some(price), quantity)
     }
 
+    fn market_buy(quantity: Decimal) -> Order {
+        make_order(OrderSide::Buy, OrderType::Market, None, quantity)
+    }
+
+    fn market_sell(quantity: Decimal) -> Order {
+        make_order(OrderSide::Sell, OrderType::Market, None, quantity)
+    }
+
     // ============================================================
     // OrderBook: add_limit_order
     // ============================================================
@@ -652,5 +660,211 @@ mod orderbook_tests {
         assert_eq!(result.trades().len(), 0);
         assert_eq!(book.best_bid(), Some(dec!(100))); // new best bid
         assert_eq!(book.best_ask(), Some(dec!(101))); // unchanged
+    }
+
+    // ============================================================
+    // Market Buy
+    // ============================================================
+
+    #[test]
+    fn test_market_buy_full_fill() {
+        let mut book = OrderBook::new();
+
+        book.add_limit_order(limit_sell(dec!(100), dec!(3)))
+            .unwrap();
+        book.add_limit_order(limit_sell(dec!(102), dec!(2)))
+            .unwrap();
+
+        let mut buy = market_buy(dec!(5));
+        let result = book.match_order(&mut buy).unwrap();
+
+        assert_eq!(result.trades().len(), 2);
+        assert_eq!(result.trades()[0].price(), dec!(100));
+        assert_eq!(result.trades()[0].quantity(), dec!(3));
+        assert_eq!(result.trades()[1].price(), dec!(102));
+        assert_eq!(result.trades()[1].quantity(), dec!(2));
+        assert!(matches!(result.status(), OrderStatus::Filled));
+        assert_eq!(result.remaining_quantity(), dec!(0));
+
+        assert_eq!(book.best_ask(), None);
+        assert_eq!(book.best_bid(), None); // market order should NOT rest
+    }
+
+    #[test]
+    fn test_market_buy_partial_fill_remainder_cancelled() {
+        let mut book = OrderBook::new();
+
+        // Only 3 available on ask side
+        book.add_limit_order(limit_sell(dec!(100), dec!(3)))
+            .unwrap();
+
+        // Market buy for 5 — fills 3, remaining 2 should be cancelled
+        let mut buy = market_buy(dec!(5));
+        let result = book.match_order(&mut buy).unwrap();
+
+        assert_eq!(result.trades().len(), 1);
+        assert_eq!(result.trades()[0].quantity(), dec!(3));
+        assert!(matches!(result.status(), OrderStatus::Cancelled));
+        assert_eq!(result.remaining_quantity(), dec!(2));
+
+        // Book should be completely empty — market order does NOT rest
+        assert_eq!(book.best_ask(), None);
+        assert_eq!(book.best_bid(), None);
+    }
+
+    #[test]
+    fn test_market_buy_empty_book() {
+        let mut book = OrderBook::new();
+
+        let mut buy = market_buy(dec!(5));
+        let result = book.match_order(&mut buy).unwrap();
+
+        assert_eq!(result.trades().len(), 0);
+        assert!(matches!(result.status(), OrderStatus::Cancelled));
+        assert_eq!(result.remaining_quantity(), dec!(5));
+
+        // Nothing in book
+        assert_eq!(book.best_bid(), None);
+        assert_eq!(book.best_ask(), None);
+    }
+
+    #[test]
+    fn test_market_buy_fills_across_all_price_levels() {
+        let mut book = OrderBook::new();
+
+        book.add_limit_order(limit_sell(dec!(100), dec!(1)))
+            .unwrap();
+        book.add_limit_order(limit_sell(dec!(200), dec!(1)))
+            .unwrap();
+        book.add_limit_order(limit_sell(dec!(500), dec!(1)))
+            .unwrap();
+
+        // Market buy — no price limit, should fill all three regardless of price
+        let mut buy = market_buy(dec!(3));
+        let result = book.match_order(&mut buy).unwrap();
+
+        assert_eq!(result.trades().len(), 3);
+        assert_eq!(result.trades()[0].price(), dec!(100));
+        assert_eq!(result.trades()[1].price(), dec!(200));
+        assert_eq!(result.trades()[2].price(), dec!(500));
+        assert!(matches!(result.status(), OrderStatus::Filled));
+    }
+
+    // ============================================================
+    // Market Sell
+    // ============================================================
+
+    #[test]
+    fn test_market_sell_full_fill() {
+        let mut book = OrderBook::new();
+
+        book.add_limit_order(limit_buy(dec!(100), dec!(3))).unwrap();
+        book.add_limit_order(limit_buy(dec!(98), dec!(2))).unwrap();
+
+        let mut sell = market_sell(dec!(5));
+        let result = book.match_order(&mut sell).unwrap();
+
+        assert_eq!(result.trades().len(), 2);
+        // Highest bid first
+        assert_eq!(result.trades()[0].price(), dec!(100));
+        assert_eq!(result.trades()[0].quantity(), dec!(3));
+        assert_eq!(result.trades()[1].price(), dec!(98));
+        assert_eq!(result.trades()[1].quantity(), dec!(2));
+        assert!(matches!(result.status(), OrderStatus::Filled));
+
+        assert_eq!(book.best_bid(), None);
+        assert_eq!(book.best_ask(), None); // market order should NOT rest
+    }
+
+    #[test]
+    fn test_market_sell_partial_fill_remainder_cancelled() {
+        let mut book = OrderBook::new();
+
+        book.add_limit_order(limit_buy(dec!(100), dec!(3))).unwrap();
+
+        let mut sell = market_sell(dec!(5));
+        let result = book.match_order(&mut sell).unwrap();
+
+        assert_eq!(result.trades().len(), 1);
+        assert_eq!(result.trades()[0].quantity(), dec!(3));
+        assert!(matches!(result.status(), OrderStatus::Cancelled));
+        assert_eq!(result.remaining_quantity(), dec!(2));
+
+        assert_eq!(book.best_bid(), None);
+        assert_eq!(book.best_ask(), None);
+    }
+
+    #[test]
+    fn test_market_sell_empty_book() {
+        let mut book = OrderBook::new();
+
+        let mut sell = market_sell(dec!(5));
+        let result = book.match_order(&mut sell).unwrap();
+
+        assert_eq!(result.trades().len(), 0);
+        assert!(matches!(result.status(), OrderStatus::Cancelled));
+        assert_eq!(result.remaining_quantity(), dec!(5));
+
+        assert_eq!(book.best_bid(), None);
+        assert_eq!(book.best_ask(), None);
+    }
+
+    #[test]
+    fn test_market_sell_matches_highest_bid_first() {
+        let mut book = OrderBook::new();
+
+        book.add_limit_order(limit_buy(dec!(95), dec!(2))).unwrap();
+        book.add_limit_order(limit_buy(dec!(100), dec!(2))).unwrap();
+        book.add_limit_order(limit_buy(dec!(98), dec!(2))).unwrap();
+
+        let mut sell = market_sell(dec!(4));
+        let result = book.match_order(&mut sell).unwrap();
+
+        assert_eq!(result.trades().len(), 2);
+        // Highest first
+        assert_eq!(result.trades()[0].price(), dec!(100));
+        assert_eq!(result.trades()[0].quantity(), dec!(2));
+        assert_eq!(result.trades()[1].price(), dec!(98));
+        assert_eq!(result.trades()[1].quantity(), dec!(2));
+        assert!(matches!(result.status(), OrderStatus::Filled));
+
+        // Only 95 level remains
+        assert_eq!(book.best_bid(), Some(dec!(95)));
+    }
+
+    // ============================================================
+    // Market order trade IDs
+    // ============================================================
+
+    #[test]
+    fn test_market_buy_trade_ids_correct() {
+        let mut book = OrderBook::new();
+
+        let ask = limit_sell(dec!(100), dec!(5));
+        let ask_id = ask.id();
+        book.add_limit_order(ask).unwrap();
+
+        let mut buy = market_buy(dec!(5));
+        let buy_id = buy.id();
+        let result = book.match_order(&mut buy).unwrap();
+
+        assert_eq!(result.trades()[0].buy_order_id(), buy_id);
+        assert_eq!(result.trades()[0].sell_order_id(), ask_id);
+    }
+
+    #[test]
+    fn test_market_sell_trade_ids_correct() {
+        let mut book = OrderBook::new();
+
+        let bid = limit_buy(dec!(100), dec!(5));
+        let bid_id = bid.id();
+        book.add_limit_order(bid).unwrap();
+
+        let mut sell = market_sell(dec!(5));
+        let sell_id = sell.id();
+        let result = book.match_order(&mut sell).unwrap();
+
+        assert_eq!(result.trades()[0].buy_order_id(), bid_id);
+        assert_eq!(result.trades()[0].sell_order_id(), sell_id);
     }
 }
