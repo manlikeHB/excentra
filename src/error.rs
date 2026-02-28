@@ -6,4 +6,6 @@ pub enum EngineError {
     OrderNotFound,
     #[error("Limit order must have a price")]
     MissingPrice,
+    #[error("Pair not found")]
+    PairNotFound,
 }

@@ -10,6 +10,7 @@ use rust_decimal::{Decimal, prelude::Zero};
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use uuid::Uuid;
 
+#[derive(Debug)]
 pub struct OrderBook {
     index: HashMap<Uuid, (Decimal, OrderSide)>, // order_id -> (price, OrderSide)
     bids: BTreeMap<Decimal, VecDeque<Order>>,
