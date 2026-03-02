@@ -1,2 +1,2 @@
-pub mod balances;
-pub mod users;
+pub mod models;
+pub mod queries;

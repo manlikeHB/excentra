@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod orderbook_tests {
-    use crate::models::order::{Order, OrderSide, OrderStatus, OrderType};
-    use crate::models::orderbook::OrderBook;
+    use crate::engine::models::order::{Order, OrderSide, OrderStatus, OrderType};
+    use crate::engine::models::orderbook::OrderBook;
     use rust_decimal::Decimal;
     use rust_decimal_macros::dec;
     use uuid::Uuid;

@@ -1,6 +1,5 @@
-use crate::models::order::{Order, OrderSide, OrderStatus, OrderType};
-use crate::models::orderbook::OrderBook;
-use crate::models::trade::Trade;
+use crate::engine::models::order::OrderStatus;
+use crate::engine::models::trade::Trade;
 use rust_decimal::Decimal;
 
 #[derive(Debug)]

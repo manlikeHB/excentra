@@ -1,4 +1,4 @@
-use crate::models::balance::Balance;
+use crate::db::models::balance::Balance;
 use rust_decimal::Decimal;
 use sqlx::PgPool;
 use uuid::Uuid;

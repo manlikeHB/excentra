@@ -1,11 +1,8 @@
-use crate::{
-    engine::matcher::MatchResult,
-    error::EngineError,
-    models::{
-        order::{self, Order, OrderSide, OrderStatus, OrderType},
-        trade::Trade,
-    },
+use crate::engine::models::{
+    order::{self, Order, OrderSide, OrderStatus, OrderType},
+    trade::Trade,
 };
+use crate::{engine::matcher::MatchResult, error::EngineError};
 use rust_decimal::{Decimal, prelude::Zero};
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use uuid::Uuid;

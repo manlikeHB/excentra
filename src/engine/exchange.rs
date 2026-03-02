@@ -1,8 +1,5 @@
-use crate::{
-    engine::matcher::MatchResult,
-    error::EngineError,
-    models::{order::Order, orderbook::OrderBook},
-};
+use crate::engine::models::{order::Order, orderbook::OrderBook};
+use crate::{engine::matcher::MatchResult, error::EngineError};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 use uuid::Uuid;
