@@ -6,7 +6,7 @@ use uuid::Uuid;
 pub async fn get_balances(pool: &PgPool, user_id: Uuid) -> Result<Vec<Balance>, sqlx::Error> {
     sqlx::query_as!(
         Balance,
-        r#"SELECT user_id, asset, available, held, updated_at FROM balances WHERE user_id = $1"#,
+        r#"SELECT id, user_id, asset, available, held, updated_at FROM balances WHERE user_id = $1"#,
         user_id
     )
     .fetch_all(pool)
@@ -18,7 +18,7 @@ pub async fn get_balance(
     user_id: Uuid,
     asset: &str,
 ) -> Result<Option<Balance>, sqlx::Error> {
-    sqlx::query_as!(Balance, r#"SELECT user_id, asset, available, held, updated_at FROM balances WHERE user_id = $1 AND asset = $2"#, user_id, asset).fetch_optional(pool).await
+    sqlx::query_as!(Balance, r#"SELECT id, user_id, asset, available, held, updated_at FROM balances WHERE user_id = $1 AND asset = $2"#, user_id, asset).fetch_optional(pool).await
 }
 
 pub async fn deposit(
@@ -27,7 +27,19 @@ pub async fn deposit(
     asset: &str,
     amount: Decimal,
 ) -> Result<Balance, sqlx::Error> {
-    sqlx::query_as!(Balance, r#"UPDATE balances SET available = available + $3, updated_at = NOW() WHERE user_id = $1 AND asset = $2 RETURNING user_id, asset, available, held, updated_at"#, user_id, asset, amount).fetch_one(pool).await
+    sqlx::query_as!(
+        Balance,
+        r#"INSERT INTO balances (user_id, asset, available)
+VALUES ($1, $2, $3)
+ON CONFLICT (user_id, asset)
+DO UPDATE SET available = balances.available + $3, updated_at = NOW()
+RETURNING id, user_id, asset, available, held, updated_at"#,
+        user_id,
+        asset,
+        amount
+    )
+    .fetch_one(pool)
+    .await
 }
 
 pub async fn hold(
@@ -36,7 +48,7 @@ pub async fn hold(
     asset: &str,
     amount: Decimal,
 ) -> Result<Balance, sqlx::Error> {
-    sqlx::query_as!(Balance, r#"UPDATE balances SET available = available - $3, held = held + $3, updated_at = NOW() WHERE user_id = $1 AND asset = $2 RETURNING user_id, asset, available, held, updated_at"#, user_id, asset, amount).fetch_one(pool).await
+    sqlx::query_as!(Balance, r#"UPDATE balances SET available = available - $3, held = held + $3, updated_at = NOW() WHERE user_id = $1 AND asset = $2 AND available >= $3 RETURNING id, user_id, asset, available, held, updated_at"#, user_id, asset, amount).fetch_one(pool).await
 }
 
 pub async fn release(
@@ -45,7 +57,7 @@ pub async fn release(
     asset: &str,
     amount: Decimal,
 ) -> Result<Balance, sqlx::Error> {
-    sqlx::query_as!(Balance, r#"UPDATE balances SET available = available + $3, held = held - $3, updated_at = NOW() WHERE user_id = $1 AND asset = $2 RETURNING user_id, asset, available, held, updated_at"#, user_id, asset, amount).fetch_one(pool).await
+    sqlx::query_as!(Balance, r#"UPDATE balances SET available = available + $3, held = held - $3, updated_at = NOW() WHERE user_id = $1 AND asset = $2 AND held >= $3 RETURNING id, user_id, asset, available, held, updated_at"#, user_id, asset, amount).fetch_one(pool).await
 }
 
 pub async fn transfer_on_fill(
@@ -61,7 +73,7 @@ pub async fn transfer_on_fill(
     let mut tx = pool.begin().await?;
 
     // buyer - quote bal
-    let x = sqlx::query!(r#"UPDATE balances SET held = held - $1, updated_at = NOW() WHERE user_id = $2 AND asset = $3"#, cost, buyer_id, quote_asset).execute(&mut *tx).await?;
+    sqlx::query!(r#"UPDATE balances SET held = held - $1, updated_at = NOW() WHERE user_id = $2 AND asset = $3"#, cost, buyer_id, quote_asset).execute(&mut *tx).await?;
 
     // buyer - base bal
     sqlx::query!(r#"UPDATE balances SET available = available + $1, updated_at = NOW() WHERE user_id = $2 AND asset = $3"#, qty, buyer_id, base_asset).execute(&mut *tx).await?;
