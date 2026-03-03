@@ -1,4 +1,4 @@
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
@@ -33,8 +33,8 @@ pub struct Order {
     quantity: Decimal,
     remaining_quantity: Decimal,
     status: OrderStatus,
-    created_at: NaiveDateTime,
-    updated_at: NaiveDateTime,
+    created_at: DateTime<Utc>,
+    updated_at: DateTime<Utc>,
 }
 
 impl Order {
@@ -48,8 +48,6 @@ impl Order {
         quantity: Decimal,
         remaining_quantity: Decimal,
         status: OrderStatus,
-        created_at: NaiveDateTime,
-        updated_at: NaiveDateTime,
     ) -> Self {
         Order {
             id,
@@ -61,8 +59,8 @@ impl Order {
             quantity,
             remaining_quantity,
             status,
-            created_at,
-            updated_at,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
         }
     }
 
@@ -97,7 +95,7 @@ impl Order {
         } else {
             self.status = OrderStatus::PartiallyFilled;
         }
-        self.updated_at = chrono::Utc::now().naive_utc();
+        self.updated_at = chrono::Utc::now();
     }
 
     pub fn status(&self) -> OrderStatus {

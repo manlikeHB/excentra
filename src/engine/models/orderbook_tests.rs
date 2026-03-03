@@ -26,8 +26,6 @@ mod orderbook_tests {
             quantity,
             quantity, // remaining = quantity for new orders
             OrderStatus::Open,
-            chrono::Utc::now().naive_utc(),
-            chrono::Utc::now().naive_utc(),
         )
     }
 

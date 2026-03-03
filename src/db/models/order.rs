@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
@@ -20,6 +20,7 @@ pub enum DBOrderType {
 #[sqlx(type_name = "order_status", rename_all = "lowercase")]
 pub enum DBOrderStatus {
     Open,
+    #[sqlx(rename = "partially_filled")]
     PartiallyFilled,
     Filled,
     Cancelled,
