@@ -1,20 +1,23 @@
-use chrono::NaiveDateTime;
+use chrono::{DateTime, NaiveDateTime, Utc};
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, sqlx::Type)]
+#[sqlx(type_name = "order_side", rename_all = "lowercase")]
 pub enum DBOrderSide {
     Buy,
     Sell,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, sqlx::Type)]
+#[sqlx(type_name = "order_type", rename_all = "lowercase")]
 pub enum DBOrderType {
     Market,
     Limit,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, sqlx::Type)]
+#[sqlx(type_name = "order_status", rename_all = "lowercase")]
 pub enum DBOrderStatus {
     Open,
     PartiallyFilled,
@@ -22,17 +25,17 @@ pub enum DBOrderStatus {
     Cancelled,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, sqlx::FromRow)]
 pub struct DBOrder {
-    id: Uuid,
-    user_id: Uuid,
-    pair_id: Uuid,
-    side: DBOrderSide,
-    order_type: DBOrderType,
-    price: Option<Decimal>,
-    quantity: Decimal,
-    remaining_quantity: Decimal,
-    status: DBOrderStatus,
-    created_at: NaiveDateTime,
-    updated_at: NaiveDateTime,
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub pair_id: Uuid,
+    pub side: DBOrderSide,
+    pub order_type: DBOrderType,
+    pub price: Option<Decimal>,
+    pub quantity: Decimal,
+    pub remaining_quantity: Decimal,
+    pub status: DBOrderStatus,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
