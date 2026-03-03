@@ -1,18 +1,14 @@
-use chrono::Utc;
-use dotenvy::dotenv;
+use crate::db::models::user::UserRole;
 use jsonwebtoken::{
     Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode, errors::Error,
 };
-use std::ops::Add;
 use uuid::Uuid;
-
-use crate::db::models::user::UserRole;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct Claims {
     user_id: Uuid,
     role: UserRole,
-    exp: chrono::DateTime<Utc>,
+    exp: i64,
 }
 
 pub fn hash_password(password: &str) -> Result<String, bcrypt::BcryptError> {
@@ -23,14 +19,11 @@ pub fn verify_password(password: &str, hash: &str) -> Result<bool, bcrypt::Bcryp
     bcrypt::verify(password, hash)
 }
 
-pub fn create_token(user_id: Uuid, role: UserRole) -> Result<String, Error> {
-    dotenv().ok();
-
-    let secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+pub fn create_token(user_id: Uuid, role: UserRole, secret: &str) -> Result<String, Error> {
     let claims = Claims {
         user_id,
         role,
-        exp: chrono::Utc::now().add(chrono::Duration::minutes(10)),
+        exp: (chrono::Utc::now() + chrono::Duration::minutes(10)).timestamp(),
     };
 
     encode(
@@ -40,9 +33,7 @@ pub fn create_token(user_id: Uuid, role: UserRole) -> Result<String, Error> {
     )
 }
 
-pub fn verify_token(token: &str) -> Result<Claims, Error> {
-    let secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
-
+pub fn verify_token(token: &str, secret: &str) -> Result<Claims, Error> {
     let claims = decode::<Claims>(
         &token,
         &DecodingKey::from_secret(secret.as_ref()),
@@ -63,5 +54,14 @@ mod test {
         if let Ok(h) = hash_password(&password) {
             assert_eq!(verify_password(&password, &h).unwrap(), true);
         }
+    }
+
+    #[test]
+    fn test_jwt_round_trip() {
+        let jwt_secret = "test_secret";
+        let user_id = Uuid::new_v4();
+        let token = create_token(user_id, UserRole::User, jwt_secret).unwrap();
+        let claims = verify_token(&token, jwt_secret).unwrap();
+        assert_eq!(claims.user_id, user_id);
     }
 }
