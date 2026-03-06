@@ -62,6 +62,22 @@ impl From<sqlx::Error> for AppError {
 
 impl From<validator::ValidationErrors> for AppError {
     fn from(e: validator::ValidationErrors) -> Self {
-        AppError::BadRequest(e.to_string())
+        let messages: Vec<String> = e
+            .field_errors()
+            .into_iter()
+            .map(|(field, errors)| {
+                let msgs: Vec<&str> = errors
+                    .iter()
+                    .filter_map(|e| e.message.as_ref().map(|m| m.as_ref()))
+                    .collect();
+                if msgs.is_empty() {
+                    format!("Invalid {}", field)
+                } else {
+                    msgs.join(", ")
+                }
+            })
+            .collect();
+
+        AppError::BadRequest(messages.join("; "))
     }
 }
