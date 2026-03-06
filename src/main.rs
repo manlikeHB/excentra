@@ -3,7 +3,10 @@ use axum::{
     routing::{get, post},
 };
 use dotenvy::dotenv;
-use excentra::api::handlers::{auth::register_user, health::health};
+use excentra::api::handlers::{
+    auth::{login_user, register_user},
+    health::health,
+};
 use excentra::api::types::AppState;
 use excentra::engine::exchange::Exchange;
 use sqlx::PgPool;
@@ -28,7 +31,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         jwt_secret,
     });
 
-    let auth_router = Router::new().route("/register", post(register_user));
+    let auth_router = Router::new()
+        .route("/register", post(register_user))
+        .route("/login", post(login_user));
 
     let api_routes = Router::new().nest("/auth", auth_router);
 

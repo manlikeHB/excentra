@@ -81,3 +81,9 @@ impl From<validator::ValidationErrors> for AppError {
         AppError::BadRequest(messages.join("; "))
     }
 }
+
+impl From<jsonwebtoken::errors::Error> for AppError {
+    fn from(_: jsonwebtoken::errors::Error) -> Self {
+        AppError::InternalError("jwt error".to_string())
+    }
+}
