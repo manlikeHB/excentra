@@ -12,7 +12,7 @@ pub struct Claims {
 }
 
 pub fn hash_password(password: &str) -> Result<String, bcrypt::BcryptError> {
-    bcrypt::hash(password, Default::default())
+    bcrypt::hash(password, bcrypt::DEFAULT_COST)
 }
 
 pub fn verify_password(password: &str, hash: &str) -> Result<bool, bcrypt::BcryptError> {
@@ -51,9 +51,9 @@ mod test {
     fn test_password_and_hash_match() {
         let password = String::from("Hello");
 
-        if let Ok(h) = hash_password(&password) {
-            assert_eq!(verify_password(&password, &h).unwrap(), true);
-        }
+        let hash = hash_password(&password).unwrap();
+
+        assert!(verify_password(&password, &hash).unwrap());
     }
 
     #[test]

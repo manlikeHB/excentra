@@ -1,3 +1,8 @@
+use axum::{
+    Json,
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -8,4 +13,55 @@ pub enum EngineError {
     MissingPrice,
     #[error("Pair not found")]
     PairNotFound,
+}
+
+#[derive(Debug, Error)]
+pub enum AppError {
+    #[error("Internal error: {0}")]
+    InternalError(String),
+    #[error("Conflict: {0}")]
+    Conflict(String),
+    #[error("Not found: {0}")]
+    NotFound(String),
+    #[error("Bad request: {0}")]
+    BadRequest(String),
+    #[error("Unauthorized: {0}")]
+    Unauthorized(String),
+}
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        let (status_code, msg) = match self {
+            AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
+            AppError::Conflict(msg) => (StatusCode::CONFLICT, msg),
+            AppError::InternalError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
+            AppError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
+        };
+
+        (status_code, Json(serde_json::json!({"error": msg}))).into_response()
+    }
+}
+
+impl From<bcrypt::BcryptError> for AppError {
+    fn from(_e: bcrypt::BcryptError) -> Self {
+        AppError::InternalError("Password hashing failed".to_string())
+    }
+}
+
+impl From<sqlx::Error> for AppError {
+    fn from(e: sqlx::Error) -> Self {
+        match e {
+            sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
+                AppError::Conflict("Resource already exist".to_string())
+            }
+            _ => AppError::InternalError("Database error".to_string()),
+        }
+    }
+}
+
+impl From<validator::ValidationErrors> for AppError {
+    fn from(e: validator::ValidationErrors) -> Self {
+        AppError::BadRequest(e.to_string())
+    }
 }
