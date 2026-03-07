@@ -3,11 +3,14 @@ use axum::{
     routing::{get, post},
 };
 use dotenvy::dotenv;
-use excentra::api::handlers::{
-    auth::{login_user, register_user},
-    health::health,
-};
 use excentra::api::types::AppState;
+use excentra::api::{
+    handlers::{
+        auth::{login_user, register_user},
+        health::health,
+    },
+    middleware::AuthUser,
+};
 use excentra::engine::exchange::Exchange;
 use sqlx::PgPool;
 use std::sync::Arc;
