@@ -1,10 +1,10 @@
-use uuid::Uuid;
+// use uuid::Uuid;
 
-#[derive(Debug, Clone)]
-pub struct TradingPair {
-    id: Uuid,
-    base_asset: String,
-    quote_asset: String,
-    symbol: String,
-    is_active: bool,
-}
+// #[derive(Debug, Clone)]
+// pub struct TradingPair {
+//     id: Uuid,
+//     base_asset: String,
+//     quote_asset: String,
+//     symbol: String,
+//     is_active: bool,
+// }
