@@ -1,6 +1,6 @@
 pub mod app_state;
 pub mod auth;
 pub mod health;
+pub mod order;
 
-// use crate::api::types::app_state::AppState;
 pub use app_state::AppState;

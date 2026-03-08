@@ -11,6 +11,19 @@ pub struct Claims {
     exp: i64,
 }
 
+impl Claims {
+    pub fn user_id(self) -> Uuid {
+        self.user_id
+    }
+
+    pub fn role(self) -> UserRole {
+        self.role
+    }
+    pub fn exp(self) -> i64 {
+        self.exp
+    }
+}
+
 pub fn hash_password(password: &str) -> Result<String, bcrypt::BcryptError> {
     bcrypt::hash(password, bcrypt::DEFAULT_COST)
 }
@@ -23,7 +36,8 @@ pub fn create_token(user_id: Uuid, role: UserRole, secret: &str) -> Result<Strin
     let claims = Claims {
         user_id,
         role,
-        exp: (chrono::Utc::now() + chrono::Duration::minutes(10)).timestamp(),
+        //TODO: reduce exp when in production
+        exp: (chrono::Utc::now() + chrono::Duration::days(1)).timestamp(), 
     };
 
     encode(

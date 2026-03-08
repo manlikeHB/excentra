@@ -25,7 +25,6 @@ mod orderbook_tests {
             price,
             quantity,
             quantity, // remaining = quantity for new orders
-            OrderStatus::Open,
         )
     }
 

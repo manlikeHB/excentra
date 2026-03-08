@@ -1,8 +1,9 @@
-use chrono::NaiveDateTime;
+use axum::response::sse;
+use chrono::{DateTime, NaiveDateTime, Utc};
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Trade {
     id: Uuid,
     pair_id: Uuid,
@@ -10,7 +11,7 @@ pub struct Trade {
     sell_order_id: Uuid,
     price: Decimal,
     quantity: Decimal,
-    created_at: NaiveDateTime,
+    created_at: DateTime<Utc>,
 }
 
 impl Trade {
@@ -21,7 +22,7 @@ impl Trade {
         sell_order_id: Uuid,
         price: Decimal,
         quantity: Decimal,
-        created_at: NaiveDateTime,
+        created_at: DateTime<Utc>,
     ) -> Self {
         Trade {
             id,
@@ -32,6 +33,14 @@ impl Trade {
             quantity,
             created_at,
         }
+    }
+
+    pub fn id(&self) -> Uuid {
+        self.id
+    }
+
+    pub fn pair_id(&self) -> Uuid {
+        self.pair_id
     }
 
     pub fn price(&self) -> Decimal {
@@ -47,5 +56,9 @@ impl Trade {
     }
     pub fn sell_order_id(&self) -> Uuid {
         self.sell_order_id
+    }
+
+    pub fn created_at(&self) -> DateTime<Utc> {
+        self.created_at
     }
 }

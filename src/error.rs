@@ -27,6 +27,8 @@ pub enum AppError {
     BadRequest(String),
     #[error("Unauthorized: {0}")]
     Unauthorized(String),
+    #[error("Unprocessable: {0}")]
+    Unprocessable(String),
 }
 
 impl IntoResponse for AppError {
@@ -37,6 +39,7 @@ impl IntoResponse for AppError {
             AppError::InternalError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
             AppError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
+            AppError::Unprocessable(msg) => (StatusCode::UNPROCESSABLE_ENTITY, msg),
         };
 
         (status_code, Json(serde_json::json!({"error": msg}))).into_response()
@@ -85,5 +88,17 @@ impl From<validator::ValidationErrors> for AppError {
 impl From<jsonwebtoken::errors::Error> for AppError {
     fn from(_: jsonwebtoken::errors::Error) -> Self {
         AppError::InternalError("jwt error".to_string())
+    }
+}
+
+impl From<EngineError> for AppError {
+    fn from(value: EngineError) -> Self {
+        match value {
+            EngineError::MissingPrice => {
+                AppError::BadRequest("Limit Order should have price".to_string())
+            }
+            EngineError::OrderNotFound => AppError::NotFound("Order not found".to_string()),
+            EngineError::PairNotFound => AppError::NotFound("Asset pair not found".to_string()),
+        }
     }
 }

@@ -3,14 +3,11 @@ use axum::{
     routing::{get, post},
 };
 use dotenvy::dotenv;
-use excentra::api::types::AppState;
-use excentra::api::{
-    handlers::{
-        auth::{login_user, register_user},
-        health::health,
-    },
-    middleware::AuthUser,
+use excentra::api::handlers::{
+    auth::{login_user, register_user},
+    health::health,
 };
+use excentra::api::{handlers::orders::place_order, types::AppState};
 use excentra::engine::exchange::Exchange;
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -38,7 +35,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/register", post(register_user))
         .route("/login", post(login_user));
 
-    let api_routes = Router::new().nest("/auth", auth_router);
+    let order_router = Router::new().route("/", post(place_order));
+
+    let api_routes = Router::new()
+        .nest("/auth", auth_router)
+        .nest("/orders", order_router);
 
     let app = Router::new()
         .nest(&base_url, api_routes)

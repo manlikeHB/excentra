@@ -203,7 +203,7 @@ impl OrderBook {
                                 book_order.id(),
                                 book_price,
                                 traded_quantity,
-                                chrono::Utc::now().naive_utc(),
+                                chrono::Utc::now(),
                             ),
                             OrderSide::Sell => Trade::new(
                                 Uuid::new_v4(),
@@ -212,7 +212,7 @@ impl OrderBook {
                                 order.id(),
                                 book_price,
                                 traded_quantity,
-                                chrono::Utc::now().naive_utc(),
+                                chrono::Utc::now(),
                             ),
                         };
 
