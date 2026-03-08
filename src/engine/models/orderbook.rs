@@ -199,6 +199,8 @@ impl OrderBook {
                             OrderSide::Buy => Trade::new(
                                 Uuid::new_v4(),
                                 order.pair_id(),
+                                order.user_id(),
+                                book_order.user_id(),
                                 order.id(),
                                 book_order.id(),
                                 book_price,
@@ -208,6 +210,8 @@ impl OrderBook {
                             OrderSide::Sell => Trade::new(
                                 Uuid::new_v4(),
                                 order.pair_id(),
+                                book_order.user_id(),
+                                order.user_id(),
                                 book_order.id(),
                                 order.id(),
                                 book_price,

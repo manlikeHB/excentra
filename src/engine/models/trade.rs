@@ -7,6 +7,8 @@ use uuid::Uuid;
 pub struct Trade {
     id: Uuid,
     pair_id: Uuid,
+    buyer_id: Uuid,
+    seller_id: Uuid,
     buy_order_id: Uuid,
     sell_order_id: Uuid,
     price: Decimal,
@@ -18,6 +20,8 @@ impl Trade {
     pub fn new(
         id: Uuid,
         pair_id: Uuid,
+        buyer_id: Uuid,
+        seller_id: Uuid,
         buy_order_id: Uuid,
         sell_order_id: Uuid,
         price: Decimal,
@@ -27,6 +31,8 @@ impl Trade {
         Trade {
             id,
             pair_id,
+            buyer_id,
+            seller_id,
             buy_order_id,
             sell_order_id,
             price,
@@ -60,5 +66,13 @@ impl Trade {
 
     pub fn created_at(&self) -> DateTime<Utc> {
         self.created_at
+    }
+
+    pub fn buyer_id(&self) -> Uuid {
+        self.buyer_id
+    }
+
+    pub fn seller_id(&self) -> Uuid {
+        self.seller_id
     }
 }
