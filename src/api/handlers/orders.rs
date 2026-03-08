@@ -16,12 +16,7 @@ use crate::{
     },
     db::{
         models::order::{DBOrderSide, DBOrderType},
-        queries::{
-            balances::{get_balance, transfer_on_fill},
-            orders::{create_order, get_order_by_id},
-            trades::create_trade,
-            trading_pairs::find_by_symbol,
-        },
+        queries as db_queries,
     },
     engine::models::order::Order,
     error::AppError,
@@ -40,7 +35,7 @@ pub async fn place_order(
     body.validate_request()?;
 
     // get trading pair
-    let trading_pair = match find_by_symbol(&state.pool, &body.symbol).await? {
+    let trading_pair = match db_queries::find_by_symbol(&state.pool, &body.symbol).await? {
         Some(pair) => pair,
         None => {
             return Err(AppError::Unprocessable(
@@ -55,7 +50,9 @@ pub async fn place_order(
             match body.side {
                 // check quote balance when buying base asset
                 DBOrderSide::Buy => {
-                    match get_balance(&state.pool, user_id, &trading_pair.quote_asset).await? {
+                    match db_queries::get_balance(&state.pool, user_id, &trading_pair.quote_asset)
+                        .await?
+                    {
                         Some(bal) => {
                             let price = match body.price {
                                 Some(p) => p,
@@ -82,7 +79,9 @@ pub async fn place_order(
                 }
                 DBOrderSide::Sell => {
                     // check base balance when selling for some quote asset
-                    match get_balance(&state.pool, user_id, &trading_pair.base_asset).await? {
+                    match db_queries::get_balance(&state.pool, user_id, &trading_pair.base_asset)
+                        .await?
+                    {
                         Some(bal) => {
                             if bal.available < body.quantity {
                                 return Err(AppError::Unprocessable(format!(
@@ -109,7 +108,9 @@ pub async fn place_order(
                 }
                 DBOrderSide::Sell => {
                     // check base balance when selling for some quote asset
-                    match get_balance(&state.pool, user_id, &trading_pair.base_asset).await? {
+                    match db_queries::get_balance(&state.pool, user_id, &trading_pair.base_asset)
+                        .await?
+                    {
                         Some(bal) => {
                             if bal.available < body.quantity {
                                 return Err(AppError::Unprocessable(format!(
@@ -153,11 +154,11 @@ pub async fn place_order(
     }
 
     // persist order in DB
-    create_order(&state.pool, order.into()).await?;
+    db_queries::create_order(&state.pool, order.into()).await?;
 
     // persist trade in DB
     for trade in match_result.trades() {
-        create_trade(&state.pool, (*trade).into()).await?;
+        db_queries::create_trade(&state.pool, (*trade).into()).await?;
 
         final_trades.push(TradeInfo {
             price: trade.price(),
@@ -167,7 +168,7 @@ pub async fn place_order(
         let buyer_id = get_user_id_by_order_id(&state.pool, trade.buy_order_id()).await?;
         let seller_id = get_user_id_by_order_id(&state.pool, trade.sell_order_id()).await?;
 
-        transfer_on_fill(
+        db_queries::transfer_on_fill(
             &state.pool,
             buyer_id,
             seller_id,
@@ -191,7 +192,7 @@ pub async fn place_order(
 }
 
 pub async fn get_user_id_by_order_id(pool: &PgPool, order_id: Uuid) -> Result<Uuid, AppError> {
-    match get_order_by_id(&pool, order_id).await {
+    match db_queries::get_order_by_id(&pool, order_id).await {
         Ok(Some(order)) => Ok(order.user_id),
         Ok(None) => return Err(AppError::InternalError("Order does not exist".to_string())),
         Err(e) => return Err(e.into()),

@@ -1,6 +1,6 @@
 use crate::api::types::auth::{LoginRequest, LoginResponse};
 use crate::auth::{create_token, hash_password, verify_password};
-use crate::db::queries::users::{create_user, find_by_email};
+use crate::db::queries as db_queries;
 use crate::{
     api::types::{
         AppState,
@@ -21,7 +21,7 @@ pub async fn register_user(
 
     let password_hash = hash_password(&body.password)?;
 
-    let new_user = create_user(&state.pool, &body.email, &password_hash).await?;
+    let new_user = db_queries::create_user(&state.pool, &body.email, &password_hash).await?;
 
     Ok((StatusCode::CREATED, Json(new_user.into())))
 }
@@ -32,7 +32,7 @@ pub async fn login_user(
 ) -> Result<(StatusCode, Json<LoginResponse>), AppError> {
     body.validate()?;
 
-    let user = match find_by_email(&state.pool, &body.email).await? {
+    let user = match db_queries::find_by_email(&state.pool, &body.email).await? {
         Some(user) => user,
         None => {
             return Err(AppError::Unauthorized(

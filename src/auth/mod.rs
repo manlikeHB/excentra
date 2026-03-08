@@ -37,7 +37,7 @@ pub fn create_token(user_id: Uuid, role: UserRole, secret: &str) -> Result<Strin
         user_id,
         role,
         //TODO: reduce exp when in production
-        exp: (chrono::Utc::now() + chrono::Duration::days(1)).timestamp(), 
+        exp: (chrono::Utc::now() + chrono::Duration::days(1)).timestamp(),
     };
 
     encode(
