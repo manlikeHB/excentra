@@ -5,6 +5,7 @@ use axum::{
 use dotenvy::dotenv;
 use excentra::api::handlers::{
     auth::{login_user, register_user},
+    balances::{deposit, get_balances},
     health::health,
 };
 use excentra::api::{handlers::orders::place_order, types::AppState};
@@ -49,9 +50,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let order_router = Router::new().route("/", post(place_order));
 
+    let balance_router = Router::new()
+        .route("/deposit", post(deposit))
+        .route("/", get(get_balances));
+
     let api_routes = Router::new()
         .nest("/auth", auth_router)
-        .nest("/orders", order_router);
+        .nest("/orders", order_router)
+        .nest("/balances", balance_router);
 
     let app = Router::new()
         .nest(&base_url, api_routes)
