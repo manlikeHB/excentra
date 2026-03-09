@@ -8,7 +8,10 @@ use excentra::api::handlers::{
     balances::{deposit, get_balances},
     health::health,
 };
-use excentra::api::{handlers::orders::place_order, types::AppState};
+use excentra::api::{
+    handlers::orders::{get_orders, place_order},
+    types::AppState,
+};
 use excentra::db::queries as db_queries;
 use excentra::engine::exchange::Exchange;
 use sqlx::PgPool;
@@ -48,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/register", post(register_user))
         .route("/login", post(login_user));
 
-    let order_router = Router::new().route("/", post(place_order));
+    let order_router = Router::new().route("/", post(place_order).get(get_orders));
 
     let balance_router = Router::new()
         .route("/deposit", post(deposit))

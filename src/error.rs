@@ -58,7 +58,10 @@ impl From<sqlx::Error> for AppError {
             sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
                 AppError::Conflict("Resource already exist".to_string())
             }
-            _ => AppError::InternalError("Database error".to_string()),
+            _ => {
+                eprintln!("Database error: {:?}", e);
+                AppError::InternalError("Database error".to_string())
+            }
         }
     }
 }

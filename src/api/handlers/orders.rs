@@ -9,13 +9,14 @@ use crate::{
         types::{
             AppState,
             order::{
-                OrderRequestValidationError, PlaceOrderRequest, PlaceOrderResponse, TradeInfo,
+                OrderRequestValidationError, OrderResponse, PlaceOrderRequest, PlaceOrderResponse,
+                TradeInfo,
             },
         },
     },
     db::{
         models::order::{DBOrderSide, DBOrderType},
-        queries as db_queries,
+        queries::{self as db_queries},
     },
     engine::models::order::Order,
     error::AppError,
@@ -228,4 +229,20 @@ pub async fn place_order(
     };
 
     Ok((StatusCode::OK, Json(place_order_response)))
+}
+
+pub async fn get_orders(
+    auth: AuthUser,
+    State(state): State<Arc<AppState>>,
+) -> Result<(StatusCode, Json<Vec<OrderResponse>>), AppError> {
+    let user_id = auth.0.user_id();
+    let mut orders_vec = Vec::new();
+
+    let orders = db_queries::get_user_orders(&state.pool, user_id).await?;
+
+    for order in orders {
+        orders_vec.push(order);
+    }
+
+    Ok((StatusCode::OK, Json(orders_vec)))
 }

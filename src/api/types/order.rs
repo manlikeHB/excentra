@@ -2,6 +2,7 @@ use crate::{
     db::models::order::{DBOrderSide, DBOrderStatus, DBOrderType},
     error::AppError,
 };
+use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
@@ -89,4 +90,19 @@ impl From<OrderRequestValidationError> for AppError {
             }
         }
     }
+}
+
+#[derive(Debug, sqlx::FromRow, serde::Serialize)]
+pub struct OrderResponse {
+    pub id: Uuid,
+    pub pair_id: String,
+    pub symbol: String,
+    pub side: DBOrderSide,
+    pub order_type: DBOrderType,
+    pub price: Option<Decimal>,
+    pub quantity: Decimal,
+    pub remaining_quantity: Decimal,
+    pub status: DBOrderStatus,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }

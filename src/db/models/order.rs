@@ -4,14 +4,14 @@ use uuid::Uuid;
 
 use crate::engine::models::order::{Order, OrderSide, OrderStatus, OrderType};
 
-#[derive(Debug, Clone, Copy, sqlx::Type, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, sqlx::Type, serde::Deserialize, serde::Serialize)]
 #[sqlx(type_name = "order_side", rename_all = "lowercase")]
 pub enum DBOrderSide {
     Buy,
     Sell,
 }
 
-#[derive(Debug, Clone, Copy, sqlx::Type, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, sqlx::Type, serde::Deserialize, serde::Serialize)]
 #[sqlx(type_name = "order_type", rename_all = "lowercase")]
 pub enum DBOrderType {
     Market,
