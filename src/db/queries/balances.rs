@@ -70,19 +70,42 @@ pub async fn transfer_on_fill(
     price: Decimal,
 ) -> Result<(), sqlx::Error> {
     let cost = qty * price;
-    // let mut tx = pool.begin().await?;
 
     // buyer - quote bal
     sqlx::query!(r#"UPDATE balances SET held = held - $1, updated_at = NOW() WHERE user_id = $2 AND asset = $3"#, cost, buyer_id, quote_asset).execute(&mut **tx).await?;
 
     // buyer - base bal
-    sqlx::query!(r#"UPDATE balances SET available = available + $1, updated_at = NOW() WHERE user_id = $2 AND asset = $3"#, qty, buyer_id, base_asset).execute(&mut **tx).await?;
+    sqlx::query!(
+        r#"
+    INSERT INTO balances (user_id, asset, available) 
+    VALUES ($1, $2, $3) 
+    ON CONFLICT (user_id, asset) 
+    DO UPDATE SET available = balances.available + $3, updated_at = NOW()
+    "#,
+        buyer_id,
+        base_asset,
+        qty
+    )
+    .execute(&mut **tx)
+    .await?;
 
     // seller - base bal
     sqlx::query!(r#"UPDATE balances SET held = held - $1, updated_at = NOW() WHERE user_id = $2 AND asset = $3"#, qty, seller_id, base_asset).execute(&mut **tx).await?;
 
     // seller - quote bal
-    sqlx::query!( r#"UPDATE balances SET available = available + $1, updated_at = NOW() WHERE user_id = $2 AND asset = $3"#, cost, seller_id, quote_asset).execute(&mut **tx).await?;
+    sqlx::query!(
+        r#"
+    INSERT INTO balances (user_id, asset, available)
+    VALUES ($1, $2, $3) 
+    ON CONFLICT (user_id, asset)
+    DO UPDATE SET available = balances.available + $3, updated_at = NOW()
+    "#,
+        seller_id,
+        quote_asset,
+        cost
+    )
+    .execute(&mut **tx)
+    .await?;
 
     Ok(())
 }
