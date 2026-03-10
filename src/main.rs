@@ -3,17 +3,20 @@ use axum::{
     routing::{get, post},
 };
 use dotenvy::dotenv;
-use excentra::api::handlers::{
-    auth::{login_user, register_user},
-    balances::{deposit, get_balances},
-    health::health,
-};
 use excentra::api::{
     handlers::orders::{get_orders, place_order},
     types::AppState,
 };
 use excentra::db::queries as db_queries;
 use excentra::engine::exchange::Exchange;
+use excentra::{
+    api::handlers::{
+        auth::{login_user, register_user},
+        balances::{deposit, get_balances},
+        health::health,
+    },
+    services::orders::OrderService,
+};
 use sqlx::PgPool;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -41,8 +44,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // app state
     let shared_state = Arc::new(AppState {
-        pool,
-        exchange: Mutex::new(exchange),
+        pool: pool.clone(),
+        order_service: OrderService::new(pool.clone(), Arc::new(Mutex::new(exchange))),
         jwt_secret,
     });
 

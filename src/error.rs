@@ -13,6 +13,8 @@ pub enum EngineError {
     MissingPrice,
     #[error("Pair not found")]
     PairNotFound,
+    #[error("Order found in index but not in book")]
+    InconsistentState,
 }
 
 #[derive(Debug, Error)]
@@ -102,6 +104,9 @@ impl From<EngineError> for AppError {
             }
             EngineError::OrderNotFound => AppError::NotFound("Order not found".to_string()),
             EngineError::PairNotFound => AppError::NotFound("Asset pair not found".to_string()),
+            EngineError::InconsistentState => {
+                AppError::InternalError("Order found in index but not in book".to_string())
+            }
         }
     }
 }

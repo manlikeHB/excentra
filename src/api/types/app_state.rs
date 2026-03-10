@@ -1,9 +1,8 @@
-use crate::engine::exchange::Exchange;
+use crate::services::orders::OrderService;
 use sqlx::PgPool;
-use tokio::sync::Mutex;
 
 pub struct AppState {
     pub pool: PgPool,
-    pub exchange: Mutex<Exchange>,
+    pub order_service: OrderService,
     pub jwt_secret: String,
 }

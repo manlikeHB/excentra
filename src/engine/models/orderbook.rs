@@ -70,7 +70,7 @@ impl OrderBook {
 
         if let Some(orders) = book.get_mut(&price) {
             if let Some(pos) = orders.iter().position(|o| o.id() == *order_id) {
-                let order = orders.remove(pos).unwrap();
+                let order = orders.remove(pos).unwrap(); // safe: pos came from position()
 
                 if orders.is_empty() {
                     book.remove(&price);
@@ -80,8 +80,7 @@ impl OrderBook {
             }
         }
 
-        // Err("Order not found in book".into())
-        panic!("Inconsistent state: order found in index but not in book"); // TODO: remove panic
+        Err(EngineError::InconsistentState)
     }
 
     pub fn best_bid(&self) -> Option<Decimal> {
