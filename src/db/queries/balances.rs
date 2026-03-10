@@ -61,7 +61,7 @@ pub async fn release(
 }
 
 pub async fn transfer_on_fill(
-    pool: &PgPool,
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     buyer_id: Uuid,
     seller_id: Uuid,
     base_asset: &str,
@@ -70,21 +70,19 @@ pub async fn transfer_on_fill(
     price: Decimal,
 ) -> Result<(), sqlx::Error> {
     let cost = qty * price;
-    let mut tx = pool.begin().await?;
+    // let mut tx = pool.begin().await?;
 
     // buyer - quote bal
-    sqlx::query!(r#"UPDATE balances SET held = held - $1, updated_at = NOW() WHERE user_id = $2 AND asset = $3"#, cost, buyer_id, quote_asset).execute(&mut *tx).await?;
+    sqlx::query!(r#"UPDATE balances SET held = held - $1, updated_at = NOW() WHERE user_id = $2 AND asset = $3"#, cost, buyer_id, quote_asset).execute(&mut **tx).await?;
 
     // buyer - base bal
-    sqlx::query!(r#"UPDATE balances SET available = available + $1, updated_at = NOW() WHERE user_id = $2 AND asset = $3"#, qty, buyer_id, base_asset).execute(&mut *tx).await?;
+    sqlx::query!(r#"UPDATE balances SET available = available + $1, updated_at = NOW() WHERE user_id = $2 AND asset = $3"#, qty, buyer_id, base_asset).execute(&mut **tx).await?;
 
     // seller - base bal
-    sqlx::query!(r#"UPDATE balances SET held = held - $1, updated_at = NOW() WHERE user_id = $2 AND asset = $3"#, qty, seller_id, base_asset).execute(&mut *tx).await?;
+    sqlx::query!(r#"UPDATE balances SET held = held - $1, updated_at = NOW() WHERE user_id = $2 AND asset = $3"#, qty, seller_id, base_asset).execute(&mut **tx).await?;
 
     // seller - quote bal
-    sqlx::query!( r#"UPDATE balances SET available = available + $1, updated_at = NOW() WHERE user_id = $2 AND asset = $3"#, cost, seller_id, quote_asset).execute(&mut *tx).await?;
-
-    tx.commit().await?;
+    sqlx::query!( r#"UPDATE balances SET available = available + $1, updated_at = NOW() WHERE user_id = $2 AND asset = $3"#, cost, seller_id, quote_asset).execute(&mut **tx).await?;
 
     Ok(())
 }

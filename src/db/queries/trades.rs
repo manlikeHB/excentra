@@ -3,7 +3,10 @@ use uuid::Uuid;
 
 use crate::db::models::trade::DBTrade;
 
-pub async fn create_trade(pool: &PgPool, trade: DBTrade) -> Result<DBTrade, sqlx::Error> {
+pub async fn create_trade<'e, E>(executor: E, trade: DBTrade) -> Result<DBTrade, sqlx::Error>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
     sqlx::query_as!(
         DBTrade,
         r#"
@@ -17,7 +20,7 @@ pub async fn create_trade(pool: &PgPool, trade: DBTrade) -> Result<DBTrade, sqlx
         trade.price,
         trade.quantity
     )
-    .fetch_one(pool)
+    .fetch_one(executor)
     .await
 }
 

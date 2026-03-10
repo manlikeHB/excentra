@@ -10,10 +10,7 @@ use crate::{
         OrderRequestValidationError, PlaceOrderRequest, PlaceOrderResponse, TradeInfo,
     },
     db::models::trading_pairs::DBTradingPair,
-    engine::{
-        exchange::Exchange,
-        models::{order::Order},
-    },
+    engine::{exchange::Exchange, matcher::MatchResult, models::order::Order},
     error::AppError,
 };
 
@@ -60,56 +57,31 @@ impl OrderService {
         );
 
         // place order
-        let place_order_result;
-        {
-            place_order_result = self
-                .exchange
-                .lock()
-                .await
-                .place_order(trading_pair.id, &mut order);
-        }
+        let place_order_result = self
+            .exchange
+            .lock()
+            .await
+            .place_order(trading_pair.id, &mut order);
 
         let match_result = match place_order_result {
             Ok(res) => res,
             Err(e) => {
                 // release held balance since order matching failed
-                db_queries::release(&self.pool, user_id, asset, amount).await?;
+                db_queries::release(&self.pool, user_id, &asset, amount).await?;
 
                 return Err(e.into());
             }
         };
 
         // persist order in DB
-        db_queries::create_order(&self.pool, order.into()).await?;
-
-        // persist trade in DB
-        for trade in match_result.trades() {
-            db_queries::create_trade(&self.pool, (*trade).into()).await?;
-
-            final_trades.push(TradeInfo {
-                price: trade.price(),
-                quantity: trade.quantity(),
-            });
-
-            db_queries::transfer_on_fill(
-                &self.pool,
-                trade.buyer_id(),
-                trade.seller_id(),
+        let place_order_response = self
+            .persist_order_and_trades(
+                order,
+                match_result,
                 &trading_pair.base_asset,
                 &trading_pair.quote_asset,
-                trade.quantity(),
-                trade.price(),
             )
             .await?;
-        }
-
-        let place_order_response = PlaceOrderResponse {
-            order_id: order.id(),
-            status: order.status().into(),
-            filled_quantity: order.quantity() - order.remaining_quantity(),
-            remaining_quantity: order.remaining_quantity(),
-            trades: final_trades,
-        };
 
         Ok(place_order_response)
     }
@@ -125,12 +97,12 @@ impl OrderService {
         }
     }
 
-    async fn validate_and_hold_balance<'a>(
+    async fn validate_and_hold_balance(
         &self,
         body: &PlaceOrderRequest,
         user_id: Uuid,
-        trading_pair: &'a DBTradingPair,
-    ) -> Result<(&'a str, Decimal), AppError> {
+        trading_pair: &DBTradingPair,
+    ) -> Result<(String, Decimal), AppError> {
         let (asset, amount) = match body.order_type {
             DBOrderType::Limit => {
                 match body.side {
@@ -167,7 +139,7 @@ impl OrderService {
                                         cost,
                                     )
                                     .await?;
-                                    (&trading_pair.quote_asset, cost)
+                                    (trading_pair.quote_asset.clone(), cost)
                                 }
                             }
                             None => {
@@ -202,15 +174,15 @@ impl OrderService {
             }
         };
 
-        Ok((asset, amount))
+        Ok((asset.clone(), amount))
     }
 
-    async fn check_balance_and_hold_base<'a>(
+    async fn check_balance_and_hold_base(
         &self,
         user_id: Uuid,
-        trading_pair: &'a DBTradingPair,
+        trading_pair: &DBTradingPair,
         quantity: Decimal,
-    ) -> Result<(&'a String, Decimal), AppError> {
+    ) -> Result<(String, Decimal), AppError> {
         match db_queries::get_balance(&self.pool, user_id, &trading_pair.base_asset).await? {
             Some(bal) => {
                 if bal.available < quantity {
@@ -222,7 +194,7 @@ impl OrderService {
                     // hold base asset
                     db_queries::hold(&self.pool, user_id, &trading_pair.base_asset, quantity)
                         .await?;
-                    Ok((&trading_pair.base_asset, quantity))
+                    Ok((trading_pair.base_asset.clone(), quantity))
                 }
             }
             None => {
@@ -232,5 +204,51 @@ impl OrderService {
                 )));
             }
         }
+    }
+
+    async fn persist_order_and_trades(
+        &self,
+        order: Order,
+        match_result: MatchResult,
+        base_asset: &str,
+        quote_asset: &str,
+    ) -> Result<PlaceOrderResponse, AppError> {
+        let mut tx = self.pool.begin().await?;
+        let mut final_trades = Vec::new();
+
+        db_queries::create_order(&mut *tx, order.into()).await?;
+
+        // persist trade in DB
+        for trade in match_result.trades() {
+            db_queries::create_trade(&mut *tx, (*trade).into()).await?;
+
+            final_trades.push(TradeInfo {
+                price: trade.price(),
+                quantity: trade.quantity(),
+            });
+
+            db_queries::transfer_on_fill(
+                &mut tx,
+                trade.buyer_id(),
+                trade.seller_id(),
+                base_asset,
+                quote_asset,
+                trade.quantity(),
+                trade.price(),
+            )
+            .await?;
+        }
+
+        tx.commit().await?;
+
+        let place_order_response = PlaceOrderResponse {
+            order_id: order.id(),
+            status: order.status().into(),
+            filled_quantity: order.quantity() - order.remaining_quantity(),
+            remaining_quantity: order.remaining_quantity(),
+            trades: final_trades,
+        };
+
+        Ok(place_order_response)
     }
 }

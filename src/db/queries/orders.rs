@@ -6,7 +6,10 @@ use crate::{
     db::models::order::{DBOrder, DBOrderSide, DBOrderStatus, DBOrderType},
 };
 
-pub async fn create_order(pool: &PgPool, order: DBOrder) -> Result<DBOrder, sqlx::Error> {
+pub async fn create_order<'e, E>(executor: E, order: DBOrder) -> Result<DBOrder, sqlx::Error>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
     sqlx::query_as!(
         DBOrder,
         r#"INSERT INTO orders 
@@ -32,7 +35,7 @@ pub async fn create_order(pool: &PgPool, order: DBOrder) -> Result<DBOrder, sqlx
         order.status as DBOrderStatus,
         order.id,
     )
-    .fetch_one(pool)
+    .fetch_one(executor)
     .await
 }
 
