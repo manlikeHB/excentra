@@ -10,7 +10,11 @@ use crate::{
         OrderRequestValidationError, PlaceOrderRequest, PlaceOrderResponse, TradeInfo,
     },
     db::models::trading_pairs::DBTradingPair,
-    engine::{exchange::Exchange, matcher::MatchResult, models::order::Order},
+    engine::{
+        exchange::Exchange,
+        matcher::MatchResult,
+        models::order::{Order, OrderSide},
+    },
     error::AppError,
 };
 
@@ -218,9 +222,39 @@ impl OrderService {
 
         db_queries::create_order(&mut *tx, order.into()).await?;
 
-        // persist trade in DB
         for trade in match_result.trades() {
+            // persist trade in DB
             db_queries::create_trade(&mut *tx, (*trade).into()).await?;
+
+            // get resting order ID
+            let resting_order_id = if order.id() == trade.buy_order_id() {
+                trade.sell_order_id()
+            } else {
+                trade.buy_order_id()
+            };
+
+            // get resting Order
+            let mut resting_order: Order =
+                match db_queries::get_order_by_id(&self.pool, resting_order_id).await? {
+                    Some(o) => o.into(),
+                    None => {
+                        return Err(AppError::InternalError(
+                            "Invalid order ID in trade".to_string(),
+                        ));
+                    }
+                };
+
+            // update order state
+            resting_order.reduce_quantity(trade.quantity());
+
+            // persist resting order in DB
+            db_queries::update_order_after_trade(
+                &mut tx,
+                resting_order.id(),
+                resting_order.status().into(),
+                resting_order.remaining_quantity(),
+            )
+            .await?;
 
             final_trades.push(TradeInfo {
                 price: trade.price(),

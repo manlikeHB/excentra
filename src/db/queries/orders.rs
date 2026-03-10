@@ -1,4 +1,6 @@
-use sqlx::PgPool;
+use rust_decimal::Decimal;
+use serde::de::Error;
+use sqlx::{PgPool, Transaction};
 use uuid::Uuid;
 
 use crate::{
@@ -91,4 +93,31 @@ pub async fn get_order_by_id(
     sqlx::query_as!(DBOrder, r#"
     SELECT id, user_id, pair_id, side as "side: DBOrderSide", order_type as "order_type: DBOrderType", price, quantity, remaining_quantity, status as "status: DBOrderStatus", created_at, updated_at FROM orders 
     WHERE id = $1"#, order_id).fetch_optional(pool).await
+}
+
+pub async fn update_order_after_trade(
+    tx: &mut Transaction<'_, sqlx::Postgres>,
+    order_id: Uuid,
+    status: DBOrderStatus,
+    remaining_quantity: Decimal,
+) -> Result<Option<DBOrder>, sqlx::Error> {
+    sqlx::query_as!(
+        DBOrder,
+        r#"UPDATE orders SET status = $2, remaining_quantity = $3, updated_at = NOW() WHERE id = $1
+    RETURNING 
+    id, 
+    user_id, pair_id, 
+    side as "side: DBOrderSide", 
+    order_type as "order_type: DBOrderType", 
+    price, quantity, 
+    remaining_quantity, 
+    status as "status: DBOrderStatus", 
+    created_at, 
+    updated_at"#,
+        order_id,
+        status as DBOrderStatus,
+        remaining_quantity
+    )
+    .fetch_optional(&mut **tx)
+    .await
 }
