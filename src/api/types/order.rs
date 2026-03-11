@@ -122,8 +122,3 @@ impl OrderResponse {
         }
     }
 }
-
-#[derive(Debug, serde::Deserialize)]
-pub struct CancelOrderRequest {
-    pub order_id: Uuid,
-}

@@ -85,13 +85,16 @@ pub async fn get_user_orders(
     .await
 }
 
-pub async fn get_order_by_id(
-    pool: &PgPool,
+pub async fn get_order_by_id<'e, E>(
+    executor: E,
     order_id: Uuid,
-) -> Result<Option<DBOrder>, sqlx::Error> {
+) -> Result<Option<DBOrder>, sqlx::Error>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
     sqlx::query_as!(DBOrder, r#"
     SELECT id, user_id, pair_id, side as "side: DBOrderSide", order_type as "order_type: DBOrderType", price, quantity, remaining_quantity, status as "status: DBOrderStatus", created_at, updated_at FROM orders 
-    WHERE id = $1"#, order_id).fetch_optional(pool).await
+    WHERE id = $1"#, order_id).fetch_optional(executor).await
 }
 
 pub async fn update_order_after_trade(

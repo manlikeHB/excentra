@@ -10,15 +10,8 @@ use crate::{
         OrderRequestValidationError, OrderResponse, PlaceOrderRequest, PlaceOrderResponse,
         TradeInfo,
     },
-    db::models::{
-        order::{DBOrder, DBOrderStatus},
-        trading_pairs::DBTradingPair,
-    },
-    engine::{
-        exchange::Exchange,
-        matcher::MatchResult,
-        models::order::{Order, OrderSide},
-    },
+    db::models::{order::DBOrderStatus, trading_pairs::DBTradingPair},
+    engine::{exchange::Exchange, matcher::MatchResult, models::order::Order},
     error::AppError,
 };
 
@@ -42,8 +35,6 @@ impl OrderService {
         user_id: Uuid,
         body: PlaceOrderRequest,
     ) -> Result<PlaceOrderResponse, AppError> {
-        let mut final_trades: Vec<TradeInfo> = Vec::new();
-
         // get trading pair
         let trading_pair = self.get_trading_pair(&body.symbol).await?;
 
@@ -239,7 +230,7 @@ impl OrderService {
 
             // get resting Order
             let mut resting_order: Order =
-                match db_queries::get_order_by_id(&self.pool, resting_order_id).await? {
+                match db_queries::get_order_by_id(&mut *tx, resting_order_id).await? {
                     Some(o) => o.into(),
                     None => {
                         return Err(AppError::InternalError(
@@ -296,7 +287,7 @@ impl OrderService {
         user_id: Uuid,
     ) -> Result<OrderResponse, AppError> {
         // verify order exist and belong to logged in user
-        let order = match db_queries::get_order_by_id(&self.pool, order_id).await? {
+        let mut order = match db_queries::get_order_by_id(&self.pool, order_id).await? {
             Some(order) => {
                 if order.user_id != user_id {
                     return Err(AppError::Forbidden(
@@ -349,9 +340,8 @@ impl OrderService {
 
         db_queries::update_order_status(&self.pool, order_id, DBOrderStatus::Cancelled).await?;
 
-        let order = db_queries::get_order_by_id(&self.pool, order_id)
-            .await?
-            .ok_or(AppError::BadRequest("Invalid order ID".to_string()))?;
+        // update status
+        order.status = DBOrderStatus::Cancelled;
 
         Ok(OrderResponse::new(order, &trading_pair.symbol))
     }
