@@ -121,3 +121,25 @@ pub async fn update_order_after_trade(
     .fetch_optional(&mut **tx)
     .await
 }
+
+pub async fn get_open_orders_by_pair(
+    pool: &PgPool,
+    pair_id: Uuid,
+) -> Result<Vec<DBOrder>, sqlx::Error> {
+    sqlx::query_as!(
+        DBOrder,
+        r#"SELECT id, user_id, pair_id, 
+        side as "side: DBOrderSide", 
+        order_type as "order_type: DBOrderType", 
+        price, quantity, remaining_quantity, 
+        status as "status: DBOrderStatus", 
+        created_at, updated_at 
+        FROM orders 
+        WHERE pair_id = $1 
+        AND status IN ('open', 'partially_filled')
+        ORDER BY created_at ASC"#,
+        pair_id
+    )
+    .fetch_all(pool)
+    .await
+}

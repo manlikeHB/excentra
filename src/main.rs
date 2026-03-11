@@ -3,10 +3,6 @@ use axum::{
     routing::{get, post},
 };
 use dotenvy::dotenv;
-use excentra::api::{
-    handlers::orders::{get_orders, place_order},
-    types::AppState,
-};
 use excentra::db::queries as db_queries;
 use excentra::engine::exchange::Exchange;
 use excentra::{
@@ -16,6 +12,14 @@ use excentra::{
         health::health,
     },
     services::orders::OrderService,
+};
+use excentra::{
+    api::{
+        handlers::orders::{get_orders, place_order},
+        types::AppState,
+    },
+    db::models::order::DBOrder,
+    engine::models::orderbook::OrderBook,
 };
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -35,11 +39,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // init db pool
     let pool = PgPool::connect(&db_url).await?;
 
-    // load trading pairs into exchange
+    // load trading pairs and resting orders into exchange
     let pairs = db_queries::get_all_trading_pairs(&pool).await?;
     let mut exchange = Exchange::new();
+
     for pair in pairs {
         exchange.add_trading_pair(pair.id);
+
+        let open_orders = db_queries::get_open_orders_by_pair(&pool, pair.id).await?;
+        let order_book = exchange.get_order_book_mut(pair.id)?;
+
+        for order in open_orders {
+            order_book.add_limit_order(order.into())?;
+        }
     }
 
     // app state

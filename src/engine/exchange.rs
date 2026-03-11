@@ -55,7 +55,7 @@ impl Exchange {
         Ok(book)
     }
 
-    fn get_order_book_mut(&mut self, pair_id: Uuid) -> Result<&mut OrderBook, EngineError> {
+    pub fn get_order_book_mut(&mut self, pair_id: Uuid) -> Result<&mut OrderBook, EngineError> {
         let book = match self.books.get_mut(&pair_id) {
             Some(b) => b,
             None => return Err(EngineError::PairNotFound),
