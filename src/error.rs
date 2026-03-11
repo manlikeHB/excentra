@@ -31,6 +31,8 @@ pub enum AppError {
     Unauthorized(String),
     #[error("Unprocessable: {0}")]
     Unprocessable(String),
+    #[error("Forbidden: {0}")]
+    Forbidden(String),
 }
 
 impl IntoResponse for AppError {
@@ -42,6 +44,7 @@ impl IntoResponse for AppError {
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
             AppError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
             AppError::Unprocessable(msg) => (StatusCode::UNPROCESSABLE_ENTITY, msg),
+            AppError::Forbidden(msg) => (StatusCode::FORBIDDEN, msg),
         };
 
         (status_code, Json(serde_json::json!({"error": msg}))).into_response()

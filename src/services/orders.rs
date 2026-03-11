@@ -7,9 +7,13 @@ use uuid::Uuid;
 
 use crate::{
     api::types::order::{
-        OrderRequestValidationError, PlaceOrderRequest, PlaceOrderResponse, TradeInfo,
+        OrderRequestValidationError, OrderResponse, PlaceOrderRequest, PlaceOrderResponse,
+        TradeInfo,
     },
-    db::models::trading_pairs::DBTradingPair,
+    db::models::{
+        order::{DBOrder, DBOrderStatus},
+        trading_pairs::DBTradingPair,
+    },
     engine::{
         exchange::Exchange,
         matcher::MatchResult,
@@ -284,5 +288,71 @@ impl OrderService {
         };
 
         Ok(place_order_response)
+    }
+
+    pub async fn cancel_order(
+        &self,
+        order_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<OrderResponse, AppError> {
+        // verify order exist and belong to logged in user
+        let order = match db_queries::get_order_by_id(&self.pool, order_id).await? {
+            Some(order) => {
+                if order.user_id != user_id {
+                    return Err(AppError::Forbidden(
+                        "Order does not belong to logged in user".to_string(),
+                    ));
+                }
+                order
+            }
+            None => return Err(AppError::BadRequest("Invalid order ID".to_string())),
+        };
+
+        match order.status {
+            DBOrderStatus::Cancelled => {
+                return Err(AppError::BadRequest(
+                    "Order is already cancelled".to_string(),
+                ));
+            }
+            DBOrderStatus::Filled => {
+                return Err(AppError::BadRequest(
+                    "Filled orders can not be cancelled".to_string(),
+                ));
+            }
+            DBOrderStatus::Open | DBOrderStatus::PartiallyFilled => (),
+        }
+
+        self.exchange
+            .lock()
+            .await
+            .cancel_order(order.pair_id, order.id)?;
+
+        // release held balance
+        let trading_pair = db_queries::find_trading_pair_by_id(&self.pool, order.pair_id)
+            .await?
+            .ok_or(AppError::InternalError(
+                "Invalid pair ID in order".to_string(),
+            ))?;
+
+        let (amount, asset) = match order.side {
+            DBOrderSide::Buy => {
+                let price = order.price.ok_or(AppError::InternalError(
+                    "Limit order should have a price".to_string(),
+                ))?;
+                let cost = price * order.remaining_quantity;
+                (cost, trading_pair.quote_asset)
+            }
+            DBOrderSide::Sell => (order.remaining_quantity, trading_pair.base_asset),
+        };
+
+        db_queries::release(&self.pool, user_id, &asset, amount).await?;
+
+        db_queries::update_order_status(&self.pool, order_id, DBOrderStatus::Cancelled).await?;
+
+        let order = db_queries::get_order_by_id(&self.pool, order_id)
+            .await?
+            .ok_or(AppError::BadRequest("Invalid order ID".to_string()))?;
+
+        Ok(OrderResponse::new(order, &trading_pair.symbol))
     }
 }

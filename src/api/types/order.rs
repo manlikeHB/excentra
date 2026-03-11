@@ -1,5 +1,5 @@
 use crate::{
-    db::models::order::{DBOrderSide, DBOrderStatus, DBOrderType},
+    db::models::order::{DBOrder, DBOrderSide, DBOrderStatus, DBOrderType},
     error::AppError,
 };
 use chrono::{DateTime, Utc};
@@ -95,7 +95,6 @@ impl From<OrderRequestValidationError> for AppError {
 #[derive(Debug, sqlx::FromRow, serde::Serialize)]
 pub struct OrderResponse {
     pub id: Uuid,
-    pub pair_id: String,
     pub symbol: String,
     pub side: DBOrderSide,
     pub order_type: DBOrderType,
@@ -105,4 +104,26 @@ pub struct OrderResponse {
     pub status: DBOrderStatus,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+impl OrderResponse {
+    pub fn new(order: DBOrder, symbol: &str) -> Self {
+        OrderResponse {
+            id: order.id,
+            symbol: symbol.to_string(),
+            side: order.side,
+            order_type: order.order_type,
+            price: order.price,
+            quantity: order.quantity,
+            remaining_quantity: order.remaining_quantity,
+            status: order.status,
+            created_at: order.created_at,
+            updated_at: order.updated_at,
+        }
+    }
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct CancelOrderRequest {
+    pub order_id: Uuid,
 }

@@ -1,6 +1,11 @@
 use std::sync::Arc;
 
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{
+    Json,
+    extract::{Path, State},
+    http::StatusCode,
+};
+use uuid::Uuid;
 
 use crate::{
     api::{
@@ -38,4 +43,15 @@ pub async fn get_orders(
     let orders = db_queries::get_user_orders(&state.pool, user_id).await?;
 
     Ok((StatusCode::OK, Json(orders)))
+}
+
+pub async fn cancel_order(
+    auth: AuthUser,
+    State(state): State<Arc<AppState>>,
+    Path(order_id): Path<Uuid>,
+) -> Result<(StatusCode, Json<OrderResponse>), AppError> {
+    let user_id = auth.0.user_id();
+    let order_response = state.order_service.cancel_order(order_id, user_id).await?;
+
+    Ok((StatusCode::OK, Json(order_response)))
 }

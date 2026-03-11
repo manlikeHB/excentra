@@ -1,5 +1,4 @@
 use rust_decimal::Decimal;
-use serde::de::Error;
 use sqlx::{PgPool, Transaction};
 use uuid::Uuid;
 
@@ -72,7 +71,7 @@ pub async fn get_user_orders(
 ) -> Result<Vec<OrderResponse>, sqlx::Error> {
     sqlx::query_as!(
         OrderResponse,
-        r#"SELECT o.id, o.pair_id, tp.symbol, o.side as "side: DBOrderSide", 
+        r#"SELECT o.id, tp.symbol, o.side as "side: DBOrderSide", 
         o.order_type as "order_type: DBOrderType", o.price, o.quantity, 
         o.remaining_quantity, o.status as "status: DBOrderStatus", 
         o.created_at, o.updated_at

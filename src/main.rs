@@ -1,8 +1,12 @@
 use axum::{
     Router,
-    routing::{get, post},
+    routing::{delete, get, post},
 };
 use dotenvy::dotenv;
+use excentra::api::{
+    handlers::orders::{cancel_order, get_orders, place_order},
+    types::AppState,
+};
 use excentra::db::queries as db_queries;
 use excentra::engine::exchange::Exchange;
 use excentra::{
@@ -12,14 +16,6 @@ use excentra::{
         health::health,
     },
     services::orders::OrderService,
-};
-use excentra::{
-    api::{
-        handlers::orders::{get_orders, place_order},
-        types::AppState,
-    },
-    db::models::order::DBOrder,
-    engine::models::orderbook::OrderBook,
 };
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -66,7 +62,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/register", post(register_user))
         .route("/login", post(login_user));
 
-    let order_router = Router::new().route("/", post(place_order).get(get_orders));
+    let order_router = Router::new()
+        .route("/", post(place_order).get(get_orders))
+        .route("/{id}", delete(cancel_order));
 
     let balance_router = Router::new()
         .route("/deposit", post(deposit))
