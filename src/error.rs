@@ -5,6 +5,8 @@ use axum::{
 };
 use thiserror::Error;
 
+use crate::engine::models::asset::AssetSymbolError;
+
 #[derive(Error, Debug)]
 pub enum EngineError {
     #[error("Order not found")]
@@ -109,6 +111,22 @@ impl From<EngineError> for AppError {
             EngineError::PairNotFound => AppError::NotFound("Asset pair not found".to_string()),
             EngineError::InconsistentState => {
                 AppError::InternalError("Order found in index but not in book".to_string())
+            }
+        }
+    }
+}
+
+impl From<AssetSymbolError> for AppError {
+    fn from(value: AssetSymbolError) -> Self {
+        match value {
+            AssetSymbolError::InvalidSymbol => {
+                AppError::BadRequest("Invalid asset symbol, expected e.g `BTC/USDT`".to_string())
+            }
+            AssetSymbolError::InvalidSymbolFormReqPath => {
+                AppError::BadRequest("Invalid asset symbol, expected e.g `BTC-USDT`".to_string())
+            }
+            AssetSymbolError::MarketNotSupported(m) => {
+                AppError::BadRequest(format!("{} market not supported", m))
             }
         }
     }
