@@ -1,7 +1,7 @@
 use chrono::Utc;
 use uuid::Uuid;
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, serde::Serialize)]
 pub struct Asset {
     pub id: Uuid,
     pub symbol: String,

@@ -4,8 +4,12 @@ use axum::{
 };
 use dotenvy::dotenv;
 use excentra::{
-    api::handlers::trading_pairs::{get_active_trading_pairs, get_all_trading_pairs},
+    api::handlers::{
+        asset::{add_asset, get_all_assets},
+        trading_pairs::{get_active_trading_pairs, get_all_trading_pairs},
+    },
     db::queries as db_queries,
+    services::assets::AssetService,
 };
 use excentra::{
     api::handlers::{
@@ -64,6 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         order_service: OrderService::new(pool.clone(), exchange.clone()),
         trading_pair_service: TradingPairService::new(pool.clone(), exchange.clone()),
         trade_service: TradeService::new(pool.clone()),
+        asset_service: AssetService::new(pool.clone()),
         jwt_secret: config.jwt_secret,
     });
 
@@ -86,12 +91,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let trades_router = Router::new().route("/{symbol}", get(get_recent_trades));
 
+    let asset_router = Router::new().route("/", post(add_asset).get(get_all_assets));
+
     let api_routes = Router::new()
         .nest("/auth", auth_router)
         .nest("/orders", order_router)
         .nest("/balances", balance_router)
         .nest("/pairs", pair_router)
-        .nest("/trades", trades_router);
+        .nest("/trades", trades_router)
+        .nest("/assets", asset_router);
 
     let app = Router::new()
         .nest(&config.base_url, api_routes)
