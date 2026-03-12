@@ -3,8 +3,14 @@ use axum::{
     routing::{delete, get, post},
 };
 use dotenvy::dotenv;
-use excentra::db::queries as db_queries;
-use excentra::engine::exchange::Exchange;
+use excentra::{
+    api::handlers::trading_pairs::add_trading_pair, engine::exchange::Exchange,
+    services::trading_pair::TradingPairService,
+};
+use excentra::{
+    api::handlers::trading_pairs::{get_active_trading_pairs, get_all_trading_pairs},
+    db::queries as db_queries,
+};
 use excentra::{
     api::handlers::{
         auth::{login_user, register_user},
@@ -50,9 +56,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // app state
+    let exchange = Arc::new(Mutex::new(exchange));
     let shared_state = Arc::new(AppState {
         pool: pool.clone(),
-        order_service: OrderService::new(pool.clone(), Arc::new(Mutex::new(exchange))),
+        exchange: exchange.clone(),
+        order_service: OrderService::new(pool.clone(), exchange.clone()),
+        trading_pair_service: TradingPairService::new(pool.clone(), exchange.clone()),
         jwt_secret: config.jwt_secret,
     });
 
@@ -69,10 +78,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/deposit", post(deposit))
         .route("/", get(get_balances));
 
+    let pair_router = Router::new()
+        .route("/", get(get_active_trading_pairs).post(add_trading_pair))
+        .route("/all", get(get_all_trading_pairs));
+
     let api_routes = Router::new()
         .nest("/auth", auth_router)
         .nest("/orders", order_router)
-        .nest("/balances", balance_router);
+        .nest("/balances", balance_router)
+        .nest("/pairs", pair_router);
 
     let app = Router::new()
         .nest(&config.base_url, api_routes)
