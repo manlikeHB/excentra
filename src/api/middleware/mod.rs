@@ -65,21 +65,22 @@ fn extract_claims(parts: &mut Parts, jwt_secret: &str) -> Result<Claims, AuthRej
 
 impl IntoResponse for AuthRejection {
     fn into_response(self) -> axum::response::Response {
-        let msg = match self {
-            AuthRejection::FailedToAuthorizeUser => "User not logged in",
-            AuthRejection::InvalidBearerToken => "Invalid Bearer token",
-            AuthRejection::InvalidHeaderValue => "Invalid Header value",
-            AuthRejection::NoAuthorizationHeader => "No authorization header",
-            AuthRejection::InsufficientPermissions => {
-                "You do not have permission to perform this action."
+        let (status_code, msg) = match self {
+            AuthRejection::FailedToAuthorizeUser => {
+                (StatusCode::UNAUTHORIZED, "User not logged in")
             }
+            AuthRejection::InvalidBearerToken => (StatusCode::UNAUTHORIZED, "Invalid Bearer token"),
+            AuthRejection::InvalidHeaderValue => (StatusCode::UNAUTHORIZED, "Invalid Header value"),
+            AuthRejection::NoAuthorizationHeader => {
+                (StatusCode::UNAUTHORIZED, "No authorization header")
+            }
+            AuthRejection::InsufficientPermissions => (
+                StatusCode::FORBIDDEN,
+                "You do not have permission to perform this action.",
+            ),
         };
 
-        (
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({"error": msg})),
-        )
-            .into_response()
+        (status_code, Json(serde_json::json!({"error": msg}))).into_response()
     }
 }
 
