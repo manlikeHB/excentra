@@ -128,6 +128,9 @@ impl From<AssetSymbolError> for AppError {
             AssetSymbolError::MarketNotSupported(m) => {
                 AppError::BadRequest(format!("{} market not supported", m))
             }
+            AssetSymbolError::EmptySymbol => {
+                AppError::BadRequest("Symbol can not be empty".to_string())
+            }
         }
     }
 }

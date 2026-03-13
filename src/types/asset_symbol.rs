@@ -6,6 +6,7 @@ pub enum AssetSymbolError {
     InvalidSymbol,
     InvalidSymbolFormReqPath,
     MarketNotSupported(String),
+    EmptySymbol,
 }
 
 pub enum SymbolPattern {
@@ -52,6 +53,9 @@ impl AssetSymbol {
     }
 
     fn validate(symbol: &str, pat: SymbolPattern) -> Result<(), AssetSymbolError> {
+        if symbol.trim().is_empty() {
+            return Err(AssetSymbolError::EmptySymbol);
+        }
         match pat {
             SymbolPattern::Hyphen => {
                 if symbol.contains("-") {
@@ -121,7 +125,10 @@ mod tests {
 
     #[test]
     fn test_new_empty_string_fails() {
-        assert!(AssetSymbol::new(" ").is_err());
+        assert_eq!(
+            AssetSymbol::new(" ").unwrap_err(),
+            AssetSymbolError::EmptySymbol
+        );
     }
 
     // ============================================================
@@ -137,7 +144,7 @@ mod tests {
 
     #[test]
     fn test_from_path_converts_dash_to_slash_internally() {
-        let res = AssetSymbol::from_path("btc-usdt");
+        let res = AssetSymbol::from_path("BTC-USDT");
         assert!(res.is_ok());
         assert_eq!(res.unwrap().as_str(), "BTC/USDT")
     }
@@ -217,6 +224,14 @@ mod tests {
         assert_eq!(
             AssetSymbol::from_path("btcusdt").unwrap_err(),
             AssetSymbolError::InvalidSymbolFormReqPath
+        );
+    }
+
+    #[test]
+    fn test_from_path_with_whitespace_gets_trimmed() {
+        assert_eq!(
+            AssetSymbol::from_path("  btc - usdt  ").unwrap().as_str(),
+            "BTC/USDT"
         );
     }
 }
