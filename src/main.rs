@@ -66,7 +66,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let exchange = Arc::new(Mutex::new(exchange));
     let shared_state = Arc::new(AppState {
         pool: pool.clone(),
-        exchange: exchange.clone(),
         order_service: OrderService::new(pool.clone(), exchange.clone()),
         trading_pair_service: TradingPairService::new(pool.clone(), exchange.clone()),
         trade_service: TradeService::new(pool.clone()),

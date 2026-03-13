@@ -24,3 +24,8 @@ impl TradeResponse {
         }
     }
 }
+
+#[derive(Debug, serde::Deserialize)]
+pub struct TradeParams {
+    pub limit: Option<i64>,
+}

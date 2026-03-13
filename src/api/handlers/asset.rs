@@ -23,7 +23,7 @@ pub async fn add_asset(
         .asset_service
         .add_asset(&body.symbol, &body.name, body.decimals)
         .await?;
-    Ok((StatusCode::OK, Json(asset)))
+    Ok((StatusCode::CREATED, Json(asset)))
 }
 
 pub async fn get_all_assets(

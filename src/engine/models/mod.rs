@@ -1,4 +1,3 @@
-pub mod asset;
 pub mod order;
 pub mod orderbook;
 pub mod trade;

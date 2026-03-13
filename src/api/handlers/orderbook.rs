@@ -11,8 +11,8 @@ use crate::{
         AppState,
         orderbook::{OrderBookParams, OrderBookResponse},
     },
-    engine::models::asset::AssetSymbol,
     error::AppError,
+    types::asset::AssetSymbol,
 };
 
 pub async fn get_orderbook(

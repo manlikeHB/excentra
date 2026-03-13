@@ -6,8 +6,8 @@ use uuid::Uuid;
 
 use crate::db::models::trading_pairs::DBTradingPair;
 use crate::db::queries as db_queries;
-use crate::engine::models::asset::{AssetSymbol, AssetSymbolError};
 use crate::error::AppError;
+use crate::types::asset::{AssetSymbol, AssetSymbolError};
 use crate::{api::types::trading_pairs::TradingPairsResponse, engine::exchange::Exchange};
 
 pub struct TradingPairService {

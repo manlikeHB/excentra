@@ -2,8 +2,8 @@ use sqlx::PgPool;
 
 use crate::{
     db::{models::trade::DBTrade, queries as db_queries},
-    engine::models::asset::{AssetSymbol, AssetSymbolError},
     error::AppError,
+    types::asset::{AssetSymbol, AssetSymbolError},
 };
 
 pub struct TradeService {
