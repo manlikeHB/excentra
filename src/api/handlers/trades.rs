@@ -12,7 +12,7 @@ use crate::{
         trades::{TradeParams, TradeResponse},
     },
     error::AppError,
-    types::asset::AssetSymbol,
+    types::asset_symbol::AssetSymbol,
 };
 
 pub async fn get_recent_trades(

@@ -12,7 +12,7 @@ use crate::{
         orderbook::{OrderBookParams, OrderBookResponse},
     },
     error::AppError,
-    types::asset::AssetSymbol,
+    types::asset_symbol::AssetSymbol,
 };
 
 pub async fn get_orderbook(

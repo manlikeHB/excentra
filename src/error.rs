@@ -5,7 +5,7 @@ use axum::{
 };
 use thiserror::Error;
 
-use crate::types::asset::AssetSymbolError;
+use crate::types::asset_symbol::AssetSymbolError;
 
 #[derive(Error, Debug)]
 pub enum EngineError {
