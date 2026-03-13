@@ -10,7 +10,10 @@ use crate::{
         OrderRequestValidationError, OrderResponse, PlaceOrderRequest, PlaceOrderResponse,
         TradeInfo,
     },
-    db::models::{order::DBOrderStatus, trading_pairs::DBTradingPair},
+    db::models::{
+        order::{DBOrder, DBOrderStatus},
+        trading_pairs::DBTradingPair,
+    },
     engine::{exchange::Exchange, matcher::MatchResult, models::order::Order},
     error::AppError,
 };
@@ -346,7 +349,7 @@ impl OrderService {
         Ok(OrderResponse::new(order, &trading_pair.symbol))
     }
 
-    pub async fn get_order_by_id(&self, order_id: Uuid) -> Result<OrderResponse, AppError> {
+    pub async fn get_order_by_id(&self, order_id: Uuid) -> Result<(DBOrder, String), AppError> {
         let order = match db_queries::get_order_by_id(&self.pool, order_id).await? {
             Some(order) => order,
             None => return Err(AppError::BadRequest("Invalid order id".to_string())),
@@ -358,6 +361,6 @@ impl OrderService {
                 "Invalid pair ID in order".to_string(),
             ))?;
 
-        Ok(OrderResponse::new(order, &trading_pair.symbol))
+        Ok((order, trading_pair.symbol))
     }
 }

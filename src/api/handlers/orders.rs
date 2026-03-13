@@ -57,10 +57,15 @@ pub async fn cancel_order(
 }
 
 pub async fn get_order_by_id(
-    _auth: AuthUser,
+    auth: AuthUser,
     State(state): State<Arc<AppState>>,
     Path(order_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<OrderResponse>), AppError> {
-    let res = state.order_service.get_order_by_id(order_id).await?;
-    Ok((StatusCode::OK, Json(res)))
+    let (order, symbol) = state.order_service.get_order_by_id(order_id).await?;
+
+    // check if order belongs to logged in user
+    if order.user_id != auth.0.user_id() {
+        return Err(AppError::NotFound("Order not found".to_string()));
+    }
+    Ok((StatusCode::OK, Json(OrderResponse::new(order, &symbol))))
 }

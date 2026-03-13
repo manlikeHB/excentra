@@ -44,5 +44,5 @@ pub async fn add_trading_pair(
             &body.quote_asset.to_uppercase(),
         )
         .await?;
-    Ok((StatusCode::OK, Json(res.into())))
+    Ok((StatusCode::CREATED, Json(res.into())))
 }
