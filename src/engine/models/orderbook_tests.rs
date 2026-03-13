@@ -864,4 +864,181 @@ mod orderbook_tests {
         assert_eq!(result.trades()[0].buy_order_id(), bid_id);
         assert_eq!(result.trades()[0].sell_order_id(), sell_id);
     }
+
+    // ============================================================
+    // depth()
+    // ============================================================
+
+    #[test]
+    fn test_depth_empty_book() {
+        let book = OrderBook::new();
+        let snapshot = book.depth(20);
+
+        assert!(snapshot.bids().is_empty());
+        assert!(snapshot.asks().is_empty());
+    }
+
+    #[test]
+    fn test_depth_bids_aggregated_per_price_level() {
+        let mut book = OrderBook::new();
+
+        // three orders at same price level
+        book.add_limit_order(limit_buy(dec!(100), dec!(2))).unwrap();
+        book.add_limit_order(limit_buy(dec!(100), dec!(3))).unwrap();
+        book.add_limit_order(limit_buy(dec!(100), dec!(5))).unwrap();
+
+        let snapshot = book.depth(20);
+
+        assert_eq!(snapshot.bids().len(), 1);
+        assert_eq!(snapshot.bids()[0].price(), dec!(100));
+        assert_eq!(snapshot.bids()[0].quantity(), dec!(10));
+    }
+
+    #[test]
+    fn test_depth_asks_aggregated_per_price_level() {
+        let mut book = OrderBook::new();
+
+        book.add_limit_order(limit_sell(dec!(101), dec!(1)))
+            .unwrap();
+        book.add_limit_order(limit_sell(dec!(101), dec!(4)))
+            .unwrap();
+        book.add_limit_order(limit_sell(dec!(101), dec!(2)))
+            .unwrap();
+
+        let snapshot = book.depth(20);
+
+        assert_eq!(snapshot.asks().len(), 1);
+        assert_eq!(snapshot.asks()[0].price(), dec!(101));
+        assert_eq!(snapshot.asks()[0].quantity(), dec!(7));
+    }
+
+    #[test]
+    fn test_depth_bids_sorted_highest_first() {
+        let mut book = OrderBook::new();
+
+        book.add_limit_order(limit_buy(dec!(95), dec!(1))).unwrap();
+        book.add_limit_order(limit_buy(dec!(100), dec!(1))).unwrap();
+        book.add_limit_order(limit_buy(dec!(98), dec!(1))).unwrap();
+
+        let snapshot = book.depth(20);
+        let bids = snapshot.bids();
+
+        assert_eq!(bids[0].price(), dec!(100));
+        assert_eq!(bids[1].price(), dec!(98));
+        assert_eq!(bids[2].price(), dec!(95));
+    }
+
+    #[test]
+    fn test_depth_asks_sorted_lowest_first() {
+        let mut book = OrderBook::new();
+
+        book.add_limit_order(limit_sell(dec!(103), dec!(1)))
+            .unwrap();
+        book.add_limit_order(limit_sell(dec!(101), dec!(1)))
+            .unwrap();
+        book.add_limit_order(limit_sell(dec!(102), dec!(1)))
+            .unwrap();
+
+        let snapshot = book.depth(20);
+        let asks = snapshot.asks();
+
+        assert_eq!(asks[0].price(), dec!(101));
+        assert_eq!(asks[1].price(), dec!(102));
+        assert_eq!(asks[2].price(), dec!(103));
+    }
+
+    // ============================================================
+    // depth() — levels parameter
+    // ============================================================
+
+    #[test]
+    fn test_depth_respects_levels_limit() {
+        let mut book = OrderBook::new();
+
+        book.add_limit_order(limit_buy(dec!(100), dec!(1))).unwrap();
+        book.add_limit_order(limit_buy(dec!(99), dec!(1))).unwrap();
+        book.add_limit_order(limit_buy(dec!(98), dec!(1))).unwrap();
+        book.add_limit_order(limit_buy(dec!(97), dec!(1))).unwrap();
+        book.add_limit_order(limit_buy(dec!(96), dec!(1))).unwrap();
+
+        let snapshot = book.depth(3);
+
+        assert_eq!(snapshot.bids().len(), 3);
+        // should be the top 3 — highest first
+        assert_eq!(snapshot.bids()[0].price(), dec!(100));
+        assert_eq!(snapshot.bids()[1].price(), dec!(99));
+        assert_eq!(snapshot.bids()[2].price(), dec!(98));
+    }
+
+    #[test]
+    fn test_depth_levels_larger_than_book_returns_all() {
+        let mut book = OrderBook::new();
+
+        book.add_limit_order(limit_buy(dec!(100), dec!(1))).unwrap();
+        book.add_limit_order(limit_buy(dec!(99), dec!(1))).unwrap();
+
+        let snapshot = book.depth(20);
+
+        // only 2 levels exist, should return both
+        assert_eq!(snapshot.bids().len(), 2);
+    }
+
+    #[test]
+    fn test_depth_zero_levels_returns_empty() {
+        let mut book = OrderBook::new();
+
+        book.add_limit_order(limit_buy(dec!(100), dec!(1))).unwrap();
+        book.add_limit_order(limit_sell(dec!(101), dec!(1)))
+            .unwrap();
+
+        let snapshot = book.depth(0);
+
+        assert!(snapshot.bids().is_empty());
+        assert!(snapshot.asks().is_empty());
+    }
+
+    // ============================================================
+    // depth() — after matching
+    // ============================================================
+
+    #[test]
+    fn test_depth_reflects_partial_fill() {
+        let mut book = OrderBook::new();
+
+        // resting ask: sell 10 @ 100
+        book.add_limit_order(limit_sell(dec!(100), dec!(10)))
+            .unwrap();
+
+        // incoming buy fills 3
+        let mut buy = limit_buy(dec!(100), dec!(3));
+        book.match_order(&mut buy).unwrap();
+
+        let snapshot = book.depth(20);
+
+        // ask should show remaining 7, not original 10
+        assert_eq!(snapshot.asks().len(), 1);
+        assert_eq!(snapshot.asks()[0].quantity(), dec!(7));
+        assert!(snapshot.bids().is_empty());
+    }
+
+    #[test]
+    fn test_depth_reflects_cancelled_order() {
+        let mut book = OrderBook::new();
+
+        let order1 = limit_buy(dec!(100), dec!(5));
+        let order2 = limit_buy(dec!(100), dec!(3));
+        let id1 = order1.id();
+
+        book.add_limit_order(order1).unwrap();
+        book.add_limit_order(order2).unwrap();
+
+        // cancel first order
+        book.cancel_order(&id1).unwrap();
+
+        let snapshot = book.depth(20);
+
+        // only order2 remains at this level
+        assert_eq!(snapshot.bids().len(), 1);
+        assert_eq!(snapshot.bids()[0].quantity(), dec!(3));
+    }
 }

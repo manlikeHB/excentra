@@ -26,6 +26,16 @@ pub struct PriceLevel {
     quantity: Decimal,
 }
 
+impl PriceLevel {
+    pub fn price(&self) -> Decimal {
+        self.price
+    }
+
+    pub fn quantity(&self) -> Decimal {
+        self.quantity
+    }
+}
+
 impl OrderBook {
     pub fn new() -> Self {
         OrderBook {
