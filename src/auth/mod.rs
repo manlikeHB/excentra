@@ -12,14 +12,14 @@ pub struct Claims {
 }
 
 impl Claims {
-    pub fn user_id(self) -> Uuid {
+    pub fn user_id(&self) -> Uuid {
         self.user_id
     }
 
-    pub fn role(self) -> UserRole {
+    pub fn role(&self) -> UserRole {
         self.role
     }
-    pub fn exp(self) -> i64 {
+    pub fn exp(&self) -> i64 {
         self.exp
     }
 }

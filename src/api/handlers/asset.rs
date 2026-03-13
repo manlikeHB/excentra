@@ -4,7 +4,7 @@ use axum::{Json, extract::State, http::StatusCode};
 
 use crate::{
     api::{
-        middleware::AuthUser,
+        middleware::AdminUser,
         types::{AppState, asset::AddAssetRequest},
     },
     db::models::assets::Asset,
@@ -12,7 +12,7 @@ use crate::{
 };
 
 pub async fn add_asset(
-    _auth: AuthUser,
+    _auth: AdminUser,
     State(state): State<Arc<AppState>>,
     Json(body): Json<AddAssetRequest>,
 ) -> Result<(StatusCode, Json<Asset>), AppError> {

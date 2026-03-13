@@ -4,7 +4,7 @@ use axum::{Json, extract::State, http::StatusCode};
 
 use crate::{
     api::{
-        middleware::AuthUser,
+        middleware::AdminUser,
         types::{
             AppState,
             trading_pairs::{AddTradingPairRequest, TradingPairsResponse},
@@ -23,25 +23,26 @@ pub async fn get_active_trading_pairs(
     Ok((StatusCode::OK, Json(res)))
 }
 
-// TODO: restrict to admin
 pub async fn get_all_trading_pairs(
-    _auth: AuthUser,
+    _auth: AdminUser,
     State(state): State<Arc<AppState>>,
 ) -> Result<(StatusCode, Json<Vec<TradingPairsResponse>>), AppError> {
     let res = state.trading_pair_service.get_all_trading_pairs().await?;
     Ok((StatusCode::OK, Json(res)))
 }
 
-// TODO: restrict to admin
 pub async fn add_trading_pair(
-    _auth: AuthUser,
+    _auth: AdminUser,
     State(state): State<Arc<AppState>>,
     Json(body): Json<AddTradingPairRequest>,
 ) -> Result<(StatusCode, Json<TradingPairsResponse>), AppError> {
     // TODO: normalize request body
     let res = state
         .trading_pair_service
-        .add_trading_pair(&body.base_asset, &body.quote_asset)
+        .add_trading_pair(
+            &body.base_asset.to_uppercase(),
+            &body.quote_asset.to_uppercase(),
+        )
         .await?;
     Ok((StatusCode::OK, Json(res.into())))
 }
