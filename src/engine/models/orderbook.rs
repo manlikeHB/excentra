@@ -14,6 +14,18 @@ pub struct OrderBook {
     asks: BTreeMap<Decimal, VecDeque<Order>>,
 }
 
+#[derive(Debug)]
+pub struct OrderBookSnapshot {
+    bids: Vec<PriceLevel>,
+    asks: Vec<PriceLevel>,
+}
+
+#[derive(Debug, serde::Serialize, Clone, Copy)]
+pub struct PriceLevel {
+    price: Decimal,
+    quantity: Decimal,
+}
+
 impl OrderBook {
     pub fn new() -> Self {
         OrderBook {
@@ -235,5 +247,46 @@ impl OrderBook {
         side.retain(|_, order| !order.is_empty());
 
         Ok(trades)
+    }
+
+    pub fn depth(&self, levels: usize) -> OrderBookSnapshot {
+        let mut bids = vec![];
+        let mut asks = vec![];
+
+        for (price, orders) in self.bids.iter().rev().take(levels) {
+            let mut total_qty = Decimal::ZERO;
+            for order in orders {
+                total_qty += order.remaining_quantity();
+            }
+
+            bids.push(PriceLevel {
+                price: *price,
+                quantity: total_qty,
+            });
+        }
+
+        for (price, orders) in self.asks.iter().take(levels) {
+            let mut total_qty = Decimal::ZERO;
+            for order in orders {
+                total_qty += order.remaining_quantity();
+            }
+
+            asks.push(PriceLevel {
+                price: *price,
+                quantity: total_qty,
+            });
+        }
+
+        OrderBookSnapshot { bids, asks }
+    }
+}
+
+impl OrderBookSnapshot {
+    pub fn bids(&self) -> Vec<PriceLevel> {
+        self.bids.clone()
+    }
+
+    pub fn asks(&self) -> Vec<PriceLevel> {
+        self.asks.clone()
     }
 }

@@ -2,9 +2,11 @@ use std::sync::Arc;
 
 use sqlx::PgPool;
 use tokio::sync::Mutex;
+use uuid::Uuid;
 
 use crate::db::models::trading_pairs::DBTradingPair;
 use crate::db::queries as db_queries;
+use crate::engine::models::asset::{AssetSymbol, AssetSymbolError};
 use crate::error::AppError;
 use crate::{api::types::trading_pairs::TradingPairsResponse, engine::exchange::Exchange};
 
@@ -64,5 +66,15 @@ impl TradingPairService {
         // add trading pair to exchange
         self.exchange.lock().await.add_trading_pair(res.id);
         Ok(res)
+    }
+
+    pub async fn get_pair_id(&self, symbol: &AssetSymbol) -> Result<Uuid, AppError> {
+        let pair = db_queries::find_by_symbol(&self.pool, symbol.as_str())
+            .await?
+            .ok_or(AssetSymbolError::MarketNotSupported(
+                symbol.as_str().to_string(),
+            ))?;
+
+        Ok(pair.id)
     }
 }

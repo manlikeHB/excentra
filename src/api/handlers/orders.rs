@@ -55,3 +55,12 @@ pub async fn cancel_order(
 
     Ok((StatusCode::OK, Json(order_response)))
 }
+
+pub async fn get_order_by_id(
+    _auth: AuthUser,
+    State(state): State<Arc<AppState>>,
+    Path(order_id): Path<Uuid>,
+) -> Result<(StatusCode, Json<OrderResponse>), AppError> {
+    let res = state.order_service.get_order_by_id(order_id).await?;
+    Ok((StatusCode::OK, Json(res)))
+}

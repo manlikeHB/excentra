@@ -4,8 +4,8 @@ use tokio::sync::Mutex;
 use crate::{
     engine::exchange::Exchange,
     services::{
-        assets::AssetService, orders::OrderService, trades::TradeService,
-        trading_pair::TradingPairService,
+        assets::AssetService, orderbook::OrderBookService, orders::OrderService,
+        trades::TradeService, trading_pair::TradingPairService,
     },
 };
 use sqlx::PgPool;
@@ -16,6 +16,7 @@ pub struct AppState {
     pub trading_pair_service: TradingPairService,
     pub trade_service: TradeService,
     pub asset_service: AssetService,
+    pub order_book_service: OrderBookService,
     pub exchange: Arc<Mutex<Exchange>>,
     pub jwt_secret: String,
 }

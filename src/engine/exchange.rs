@@ -46,7 +46,7 @@ impl Exchange {
         Ok(book.best_ask())
     }
 
-    fn get_order_book(&self, pair_id: Uuid) -> Result<&OrderBook, EngineError> {
+    pub fn get_order_book(&self, pair_id: Uuid) -> Result<&OrderBook, EngineError> {
         let book = match self.books.get(&pair_id) {
             Some(b) => b,
             None => return Err(EngineError::PairNotFound),

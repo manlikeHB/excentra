@@ -345,4 +345,19 @@ impl OrderService {
 
         Ok(OrderResponse::new(order, &trading_pair.symbol))
     }
+
+    pub async fn get_order_by_id(&self, order_id: Uuid) -> Result<OrderResponse, AppError> {
+        let order = match db_queries::get_order_by_id(&self.pool, order_id).await? {
+            Some(order) => order,
+            None => return Err(AppError::BadRequest("Invalid order id".to_string())),
+        };
+
+        let trading_pair = db_queries::find_trading_pair_by_id(&self.pool, order.pair_id)
+            .await?
+            .ok_or(AppError::InternalError(
+                "Invalid pair ID in order".to_string(),
+            ))?;
+
+        Ok(OrderResponse::new(order, &trading_pair.symbol))
+    }
 }
