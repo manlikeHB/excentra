@@ -122,3 +122,253 @@ impl OrderResponse {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::models::order::{DBOrderSide, DBOrderType};
+    use rust_decimal_macros::dec;
+
+    fn make_request(
+        symbol: &str,
+        side: DBOrderSide,
+        order_type: DBOrderType,
+        price: Option<Decimal>,
+        quantity: Decimal,
+    ) -> PlaceOrderRequest {
+        PlaceOrderRequest {
+            symbol: symbol.to_string(),
+            side,
+            order_type,
+            price,
+            quantity,
+        }
+    }
+
+    // ============================================================
+    // Symbol validation
+    // ============================================================
+
+    #[test]
+    fn test_valid_limit_buy() {
+        let req = make_request(
+            "BTC/USDT",
+            DBOrderSide::Buy,
+            DBOrderType::Limit,
+            Some(dec!(100)),
+            dec!(1),
+        );
+        assert!(req.validate_request().is_ok());
+    }
+
+    #[test]
+    fn test_invalid_symbol_missing_separator() {
+        let req = make_request(
+            "BTCUSDT",
+            DBOrderSide::Buy,
+            DBOrderType::Limit,
+            Some(dec!(100)),
+            dec!(1),
+        );
+        assert!(req.validate_request().is_err());
+    }
+
+    // ============================================================
+    // Limit order validation
+    // ============================================================
+
+    #[test]
+    fn test_limit_order_missing_price_fails() {
+        let req = make_request(
+            "BTC/USDT",
+            DBOrderSide::Buy,
+            DBOrderType::Limit,
+            None,
+            dec!(1),
+        );
+        assert!(req.validate_request().is_err());
+    }
+
+    #[test]
+    fn test_limit_order_zero_price_fails() {
+        let req = make_request(
+            "BTC/USDT",
+            DBOrderSide::Buy,
+            DBOrderType::Limit,
+            Some(dec!(0)),
+            dec!(1),
+        );
+        assert!(req.validate_request().is_err());
+    }
+
+    #[test]
+    fn test_limit_order_negative_price_fails() {
+        let req = make_request(
+            "BTC/USDT",
+            DBOrderSide::Buy,
+            DBOrderType::Limit,
+            Some(dec!(-50)),
+            dec!(1),
+        );
+        assert!(req.validate_request().is_err());
+    }
+
+    #[test]
+    fn test_limit_order_valid_sell() {
+        let req = make_request(
+            "ETH/USDT",
+            DBOrderSide::Sell,
+            DBOrderType::Limit,
+            Some(dec!(2000)),
+            dec!(0.5),
+        );
+        assert!(req.validate_request().is_ok());
+    }
+
+    // ============================================================
+    // Market order validation
+    // ============================================================
+
+    #[test]
+    fn test_market_order_with_price_fails() {
+        let req = make_request(
+            "BTC/USDT",
+            DBOrderSide::Sell,
+            DBOrderType::Market,
+            Some(dec!(100)),
+            dec!(1),
+        );
+        assert!(req.validate_request().is_err());
+    }
+
+    #[test]
+    fn test_market_sell_no_price_valid() {
+        let req = make_request(
+            "BTC/USDT",
+            DBOrderSide::Sell,
+            DBOrderType::Market,
+            None,
+            dec!(1),
+        );
+        assert!(req.validate_request().is_ok());
+    }
+
+    // ============================================================
+    // Quantity validation
+    // ============================================================
+
+    #[test]
+    fn test_zero_quantity_fails() {
+        let req = make_request(
+            "BTC/USDT",
+            DBOrderSide::Buy,
+            DBOrderType::Limit,
+            Some(dec!(100)),
+            dec!(0),
+        );
+        assert!(req.validate_request().is_err());
+    }
+
+    #[test]
+    fn test_negative_quantity_fails() {
+        let req = make_request(
+            "BTC/USDT",
+            DBOrderSide::Buy,
+            DBOrderType::Limit,
+            Some(dec!(100)),
+            dec!(-1),
+        );
+        assert!(req.validate_request().is_err());
+    }
+
+    #[test]
+    fn test_valid_quantity() {
+        let req = make_request(
+            "BTC/USDT",
+            DBOrderSide::Buy,
+            DBOrderType::Limit,
+            Some(dec!(100)),
+            dec!(0.001),
+        );
+        assert!(req.validate_request().is_ok());
+    }
+
+    // ============================================================
+    // Error variants
+    // ============================================================
+
+    #[test]
+    fn test_missing_price_returns_invalid_limit_order_error() {
+        let req = make_request(
+            "BTC/USDT",
+            DBOrderSide::Buy,
+            DBOrderType::Limit,
+            None,
+            dec!(1),
+        );
+        assert!(matches!(
+            req.validate_request().unwrap_err(),
+            OrderRequestValidationError::InvalidLimitOrder
+        ));
+    }
+
+    #[test]
+    fn test_market_with_price_returns_invalid_market_order_error() {
+        let req = make_request(
+            "BTC/USDT",
+            DBOrderSide::Sell,
+            DBOrderType::Market,
+            Some(dec!(100)),
+            dec!(1),
+        );
+        assert!(matches!(
+            req.validate_request().unwrap_err(),
+            OrderRequestValidationError::InvalidMarketOrder
+        ));
+    }
+
+    #[test]
+    fn test_invalid_symbol_returns_invalid_symbol_error() {
+        let req = make_request(
+            "BTCUSDT",
+            DBOrderSide::Buy,
+            DBOrderType::Limit,
+            Some(dec!(100)),
+            dec!(1),
+        );
+        assert!(matches!(
+            req.validate_request().unwrap_err(),
+            OrderRequestValidationError::InvalidSymbol
+        ));
+    }
+
+    #[test]
+    fn test_zero_price_returns_invalid_price_error() {
+        let req = make_request(
+            "BTC/USDT",
+            DBOrderSide::Buy,
+            DBOrderType::Limit,
+            Some(dec!(0)),
+            dec!(1),
+        );
+        assert!(matches!(
+            req.validate_request().unwrap_err(),
+            OrderRequestValidationError::InvalidPrice
+        ));
+    }
+
+    #[test]
+    fn test_zero_quantity_returns_invalid_quantity_error() {
+        let req = make_request(
+            "BTC/USDT",
+            DBOrderSide::Buy,
+            DBOrderType::Limit,
+            Some(dec!(100)),
+            dec!(0),
+        );
+        assert!(matches!(
+            req.validate_request().unwrap_err(),
+            OrderRequestValidationError::InvalidQuantity
+        ));
+    }
+}
