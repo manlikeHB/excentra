@@ -47,13 +47,15 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
     let subs_read = subscriptions.clone();
     let subs_write = subscriptions.clone();
     let user_id_read = user_id.clone();
-    let user_id_write = user_id.clone();
+    // let user_id_write = user_id.clone();
 
     let read_task =
-        tokio::spawn(async move { read_task(receiver, subs_read, user_id_read, state, error_tx) });
+        tokio::spawn(
+            async move { read_task(receiver, subs_read, user_id_read, state, error_tx).await },
+        );
 
     let write_task =
-        tokio::spawn(async move { write_task(sender, rx, subs_write, user_id_write, error_rx) });
+        tokio::spawn(async move { write_task(sender, rx, subs_write, error_rx).await });
 
     tokio::select! {
      _ = read_task => {}
@@ -99,10 +101,13 @@ async fn read_task(
                             // orders is a private channel, so the user_id being sent need to check if authorized
                             if is_authorized_for_private(channel_user_id, &user_id, &error_tx).await
                             {
-                                subscriptions
-                                    .lock()
-                                    .await
-                                    .insert(Channel::Orders(channel_user_id).to_string());
+                                let channel_str = Channel::Orders(channel_user_id).to_string();
+                                subscriptions.lock().await.insert(channel_str.clone());
+                                let _ = error_tx
+                                    .send(OutboundMessage::Subscribed {
+                                        channel: channel_str,
+                                    })
+                                    .await;
                             }
                         }
                         Ok(ch) => {
@@ -189,7 +194,6 @@ async fn write_task(
     mut sender: SplitSink<WebSocket, Message>,
     mut rx: broadcast::Receiver<WsEvent>,
     subscriptions: Arc<Mutex<HashSet<String>>>,
-    _user_id: Arc<Mutex<Option<Uuid>>>,
     mut error_rx: mpsc::Receiver<OutboundMessage>,
 ) {
     loop {
