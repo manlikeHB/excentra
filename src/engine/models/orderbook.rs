@@ -14,7 +14,7 @@ pub struct OrderBook {
     asks: BTreeMap<Decimal, VecDeque<Order>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct OrderBookSnapshot {
     bids: Vec<PriceLevel>,
     asks: Vec<PriceLevel>,

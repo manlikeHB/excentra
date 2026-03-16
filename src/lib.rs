@@ -6,5 +6,6 @@ pub mod engine;
 pub mod error;
 pub mod services;
 pub mod types;
+pub mod ws;
 
 mod tests;

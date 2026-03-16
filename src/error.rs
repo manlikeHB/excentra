@@ -118,19 +118,6 @@ impl From<EngineError> for AppError {
 
 impl From<AssetSymbolError> for AppError {
     fn from(value: AssetSymbolError) -> Self {
-        match value {
-            AssetSymbolError::InvalidSymbol => {
-                AppError::BadRequest("Invalid asset symbol, expected e.g `BTC/USDT`".to_string())
-            }
-            AssetSymbolError::InvalidSymbolFormReqPath => {
-                AppError::BadRequest("Invalid asset symbol, expected e.g `BTC-USDT`".to_string())
-            }
-            AssetSymbolError::MarketNotSupported(m) => {
-                AppError::BadRequest(format!("{} market not supported", m))
-            }
-            AssetSymbolError::EmptySymbol => {
-                AppError::BadRequest("Symbol can not be empty".to_string())
-            }
-        }
+        AppError::BadRequest(value.into())
     }
 }

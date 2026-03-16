@@ -9,6 +9,21 @@ pub enum AssetSymbolError {
     EmptySymbol,
 }
 
+impl From<AssetSymbolError> for String {
+    fn from(value: AssetSymbolError) -> Self {
+        match value {
+            AssetSymbolError::EmptySymbol => "Symbol can not be empty".to_string(),
+            AssetSymbolError::InvalidSymbol => {
+                "Invalid asset symbol, expected e.g `BTC/USDT`".to_string()
+            }
+            AssetSymbolError::InvalidSymbolFormReqPath => {
+                "Invalid asset symbol, expected e.g `BTC-USDT`".to_string()
+            }
+            AssetSymbolError::MarketNotSupported(m) => format!("{m} market not supported"),
+        }
+    }
+}
+
 pub enum SymbolPattern {
     Hyphen,
     Slash,

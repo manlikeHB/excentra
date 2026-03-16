@@ -35,7 +35,7 @@ use excentra::{
 };
 use sqlx::PgPool;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, broadcast};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -62,6 +62,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    let (tx, _) = broadcast::channel(1000);
+
     // app state
     let exchange = Arc::new(Mutex::new(exchange));
     let shared_state = Arc::new(AppState {
@@ -71,6 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         trade_service: TradeService::new(pool.clone()),
         asset_service: AssetService::new(pool.clone()),
         order_book_service: OrderBookService::new(exchange.clone()),
+        ws_sender: tx,
         jwt_secret: config.jwt_secret,
     });
 
