@@ -1,6 +1,6 @@
 use rust_decimal::Decimal;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, broadcast};
 
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -16,6 +16,8 @@ use crate::{
     },
     engine::{exchange::Exchange, matcher::MatchResult, models::order::Order},
     error::AppError,
+    types::asset_symbol::AssetSymbol,
+    ws::messages::WsEvent,
 };
 
 use crate::db::{
@@ -26,11 +28,20 @@ use crate::db::{
 pub struct OrderService {
     pool: PgPool,
     exchange: Arc<Mutex<Exchange>>,
+    ws_sender: broadcast::Sender<WsEvent>,
 }
 
 impl OrderService {
-    pub fn new(pool: PgPool, exchange: Arc<Mutex<Exchange>>) -> Self {
-        OrderService { pool, exchange }
+    pub fn new(
+        pool: PgPool,
+        exchange: Arc<Mutex<Exchange>>,
+        ws_sender: broadcast::Sender<WsEvent>,
+    ) -> Self {
+        OrderService {
+            pool,
+            exchange,
+            ws_sender,
+        }
     }
 
     pub async fn place_order(
@@ -217,6 +228,7 @@ impl OrderService {
     ) -> Result<PlaceOrderResponse, AppError> {
         let mut tx = self.pool.begin().await?;
         let mut final_trades = Vec::new();
+        let symbol = AssetSymbol::new(&format!("{}/{}", base_asset, quote_asset))?;
 
         db_queries::create_order(&mut *tx, order.into()).await?;
 
@@ -269,9 +281,52 @@ impl OrderService {
                 trade.price(),
             )
             .await?;
+
+            // broadcast trade
+            let ws_event = WsEvent::TradeEvent {
+                symbol: symbol.as_str().to_string(),
+                price: trade.price(),
+                quantity: trade.quantity(),
+                created_at: trade.created_at(),
+            };
+            let _ = self.ws_sender.send(ws_event);
+
+            // broadcast updated order (resting order)
+            let ws_event = WsEvent::OrderStatusUpdate {
+                user_id: resting_order.user_id(),
+                order_id: resting_order.id(),
+                status: resting_order.status().into(),
+                quantity: resting_order.quantity(),
+                remaining_quantity: resting_order.remaining_quantity(),
+            };
+            let _ = self.ws_sender.send(ws_event);
         }
 
         tx.commit().await?;
+
+        // broadcast updated order (incoming order)
+        let ws_event = WsEvent::OrderStatusUpdate {
+            user_id: order.user_id(),
+            order_id: order.id(),
+            status: order.status().into(),
+            quantity: order.quantity(),
+            remaining_quantity: order.remaining_quantity(),
+        };
+        let _ = self.ws_sender.send(ws_event);
+
+        // broadcast orderbook snapshot
+        let snapshot = self
+            .exchange
+            .lock()
+            .await
+            .get_order_book(order.pair_id())?
+            .depth(20);
+
+        let ws_event = WsEvent::OrderBookUpdate {
+            symbol: symbol.as_str().to_string(),
+            snapshot: snapshot,
+        };
+        let _ = self.ws_sender.send(ws_event);
 
         let place_order_response = PlaceOrderResponse {
             order_id: order.id(),
@@ -345,6 +400,30 @@ impl OrderService {
 
         // update status
         order.status = DBOrderStatus::Cancelled;
+
+        // broadcast updated order
+        let ws_event = WsEvent::OrderStatusUpdate {
+            user_id: order.user_id,
+            order_id: order.id,
+            status: order.status,
+            quantity: order.quantity,
+            remaining_quantity: order.remaining_quantity,
+        };
+        let _ = self.ws_sender.send(ws_event);
+
+        // broadcast orderbook snapshot
+        let snapshot = self
+            .exchange
+            .lock()
+            .await
+            .get_order_book(order.pair_id)?
+            .depth(20);
+
+        let ws_event = WsEvent::OrderBookUpdate {
+            symbol: trading_pair.symbol.clone(),
+            snapshot: snapshot,
+        };
+        let _ = self.ws_sender.send(ws_event);
 
         Ok(OrderResponse::new(order, &trading_pair.symbol))
     }

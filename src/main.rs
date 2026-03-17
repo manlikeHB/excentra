@@ -9,6 +9,7 @@ use excentra::{
         orderbook::get_orderbook,
         orders::get_order_by_id,
         trading_pairs::{get_active_trading_pairs, get_all_trading_pairs},
+        ws::ws_handler,
     },
     db::queries as db_queries,
     services::{assets::AssetService, orderbook::OrderBookService},
@@ -68,7 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let exchange = Arc::new(Mutex::new(exchange));
     let shared_state = Arc::new(AppState {
         pool: pool.clone(),
-        order_service: OrderService::new(pool.clone(), exchange.clone()),
+        order_service: OrderService::new(pool.clone(), exchange.clone(), tx.clone()),
         trading_pair_service: TradingPairService::new(pool.clone(), exchange.clone()),
         trade_service: TradeService::new(pool.clone()),
         asset_service: AssetService::new(pool.clone()),
@@ -100,6 +101,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let orderbook_router = Router::new().route("/{symbol}", get(get_orderbook));
 
+    let ws_router = Router::new().route("/", get(ws_handler));
+
     let api_routes = Router::new()
         .nest("/auth", auth_router)
         .nest("/orders", order_router)
@@ -107,7 +110,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/pairs", pair_router)
         .nest("/trades", trades_router)
         .nest("/assets", asset_router)
-        .nest("/orderbook", orderbook_router);
+        .nest("/orderbook", orderbook_router)
+        .nest("/ws", ws_router);
 
     let app = Router::new()
         .nest(&config.base_url, api_routes)
