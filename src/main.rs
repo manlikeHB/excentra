@@ -101,8 +101,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let orderbook_router = Router::new().route("/{symbol}", get(get_orderbook));
 
-    let ws_router = Router::new().route("/", get(ws_handler));
-
     let api_routes = Router::new()
         .nest("/auth", auth_router)
         .nest("/orders", order_router)
@@ -110,12 +108,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/pairs", pair_router)
         .nest("/trades", trades_router)
         .nest("/assets", asset_router)
-        .nest("/orderbook", orderbook_router)
-        .nest("/ws", ws_router);
+        .nest("/orderbook", orderbook_router);
 
     let app = Router::new()
         .nest(&config.base_url, api_routes)
         .route("/health", get(health))
+        .route("/ws", get(ws_handler))
         .with_state(shared_state);
 
     let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", config.port)).await?;

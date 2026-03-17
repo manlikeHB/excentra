@@ -228,7 +228,8 @@ impl OrderService {
     ) -> Result<PlaceOrderResponse, AppError> {
         let mut tx = self.pool.begin().await?;
         let mut final_trades = Vec::new();
-        let symbol = AssetSymbol::new(&format!("{}/{}", base_asset, quote_asset))?;
+        let symbol = AssetSymbol::new(&format!("{}/{}", base_asset, quote_asset))
+            .map_err(|_| AppError::InternalError("Invalid trading pair symbol".to_string()))?;
 
         db_queries::create_order(&mut *tx, order.into()).await?;
 
