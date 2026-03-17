@@ -1,7 +1,7 @@
 use crate::{
     services::{
         assets::AssetService, orderbook::OrderBookService, orders::OrderService,
-        trades::TradeService, trading_pair::TradingPairService,
+        ticker::TickerService, trades::TradeService, trading_pair::TradingPairService,
     },
     ws::messages::WsEvent,
 };
@@ -17,4 +17,5 @@ pub struct AppState {
     pub order_book_service: OrderBookService,
     pub ws_sender: broadcast::Sender<WsEvent>,
     pub jwt_secret: String,
+    pub ticker_service: TickerService,
 }

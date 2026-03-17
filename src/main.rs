@@ -12,7 +12,7 @@ use excentra::{
         ws::ws_handler,
     },
     db::queries as db_queries,
-    services::{assets::AssetService, orderbook::OrderBookService},
+    services::{assets::AssetService, orderbook::OrderBookService, ticker::TickerService},
 };
 use excentra::{
     api::handlers::{
@@ -74,8 +74,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         trade_service: TradeService::new(pool.clone()),
         asset_service: AssetService::new(pool.clone()),
         order_book_service: OrderBookService::new(exchange.clone()),
-        ws_sender: tx,
+        ws_sender: tx.clone(),
         jwt_secret: config.jwt_secret,
+        ticker_service: TickerService::new(pool.clone(), tx.clone()),
     });
 
     // Router & routes
@@ -114,7 +115,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest(&config.base_url, api_routes)
         .route("/health", get(health))
         .route("/ws", get(ws_handler))
-        .with_state(shared_state);
+        .with_state(shared_state.clone());
+
+    let ticker_state = shared_state.clone();
+    tokio::spawn(async move {
+        ticker_state.ticker_service.run().await;
+    });
 
     let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", config.port)).await?;
     println!("Server listening on port {}", config.port);

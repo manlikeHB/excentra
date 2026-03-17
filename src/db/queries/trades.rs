@@ -43,3 +43,17 @@ pub async fn get_recent_trades(
     .fetch_all(pool)
     .await
 }
+
+pub async fn get_trades_from_last_24_hours(
+    pool: &PgPool,
+    pair_id: Uuid,
+) -> Result<Vec<DBTrade>, sqlx::Error> {
+    sqlx::query_as!(DBTrade, r#"SELECT * FROM trades WHERE pair_id = $1 AND created_at >= NOW() - INTERVAL '24 hours' ORDER BY created_at DESC"#, pair_id).fetch_all(pool).await
+}
+
+pub async fn get_baseline_trade(
+    pool: &PgPool,
+    pair_id: Uuid,
+) -> Result<Option<DBTrade>, sqlx::Error> {
+    sqlx::query_as!(DBTrade, r#"SELECT * FROM trades WHERE pair_id = $1 AND created_at < NOW() - INTERVAL '24 hours' ORDER BY created_at DESC LIMIT 1"#, pair_id).fetch_optional(pool).await
+}
