@@ -28,3 +28,16 @@ impl From<Trade> for DBTrade {
         }
     }
 }
+
+pub struct TradeStat {
+    pub high_24h: Option<Decimal>,
+    pub low_24h: Option<Decimal>,
+    pub volume_24h: Option<Decimal>,
+    pub oldest_price: Option<Decimal>,
+    pub baseline_price: Option<Decimal>,
+    pub last_price: Option<Decimal>,
+}
+
+pub struct LastPrice {
+    pub price: Decimal,
+}

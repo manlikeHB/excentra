@@ -29,56 +29,41 @@ impl TickerService {
 
             let pairs = match db_queries::get_active_trading_pairs(&self.pool).await {
                 Ok(pairs) => pairs,
-                Err(_) => continue, // skip this tick if DB fails
+                Err(_) => continue,
             };
 
             for pair in pairs {
-                let trades =
-                    match db_queries::get_trades_from_last_24_hours(&self.pool, pair.id).await {
-                        Ok(t) if t.is_empty() => continue, // no trades, skip this pair
-                        Ok(t) => t,
-                        Err(_) => continue,
-                    };
+                let stat = match db_queries::get_trade_stats(&self.pool, pair.id).await {
+                    Ok(s) => s,
+                    Err(_) => continue,
+                };
 
-                // trades are ordered DESC so first is most recent
-                let last_price = trades[0].price;
+                // if any of these are None, there are no trades — skip
+                let (Some(high_24h), Some(low_24h), Some(volume_24h), Some(last_price)) = (
+                    stat.high_24h,
+                    stat.low_24h,
+                    stat.volume_24h,
+                    stat.last_price,
+                ) else {
+                    continue;
+                };
 
-                let mut high_24h = Decimal::ZERO;
-                let mut low_24h = Decimal::MAX;
-                let mut volume_24h = Decimal::ZERO;
-
-                for trade in &trades {
-                    if trade.price > high_24h {
-                        high_24h = trade.price;
-                    }
-                    if trade.price < low_24h {
-                        low_24h = trade.price;
-                    }
-                    volume_24h += trade.quantity;
-                }
-
-                // get baseline price (last trade before the 24h window)
-                // fall back to oldest trade in window if no baseline exists
-                let baseline_price = match db_queries::get_baseline_trade(&self.pool, pair.id).await
-                {
-                    Ok(Some(t)) => t.price,
-                    Ok(None) => trades.last().unwrap().price, // safe: never empty
-                    Err(_) => trades.last().unwrap().price,   // safe: never empty
+                // use baseline if available, fall back to oldest trade in window
+                let Some(baseline_price) = stat.baseline_price.or(stat.oldest_price) else {
+                    continue;
                 };
 
                 let price_change_pct =
                     (last_price - baseline_price) / baseline_price * Decimal::ONE_HUNDRED;
 
-                let event = WsEvent::TickerUpdate {
+                let _ = self.ws_sender.send(WsEvent::TickerUpdate {
                     symbol: pair.symbol,
                     last_price,
                     high_24h,
                     low_24h,
                     volume_24h,
                     price_change_pct,
-                };
-
-                let _ = self.ws_sender.send(event);
+                });
             }
         }
     }
