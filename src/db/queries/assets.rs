@@ -36,3 +36,12 @@ pub async fn add_asset(
     .fetch_one(pool)
     .await
 }
+
+pub async fn get_assets_with_coingecko_ids(pool: &PgPool) -> Result<Vec<Asset>, sqlx::Error> {
+    sqlx::query_as!(
+        Asset,
+        r#"SELECT * FROM assets WHERE is_active = true AND coingecko_id IS NOT NULL"#
+    )
+    .fetch_all(pool)
+    .await
+}

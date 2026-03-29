@@ -12,7 +12,10 @@ use excentra::{
         ws::ws_handler,
     },
     db::queries as db_queries,
-    services::{assets::AssetService, orderbook::OrderBookService, ticker::TickerService},
+    services::{
+        assets::AssetService, orderbook::OrderBookService, price_seed::PriceSeedService,
+        ticker::TickerService,
+    },
 };
 use excentra::{
     api::handlers::{
@@ -121,6 +124,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tokio::spawn(async move {
         ticker_state.ticker_service.run().await;
     });
+
+    // seed price
+    let price_seed_service =
+        PriceSeedService::new(pool.clone(), exchange.clone(), reqwest::Client::new());
+    price_seed_service.seed_prices().await?;
 
     let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", config.port)).await?;
     println!("Server listening on port {}", config.port);

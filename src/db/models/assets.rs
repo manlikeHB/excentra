@@ -8,5 +8,6 @@ pub struct Asset {
     pub name: String,
     pub decimals: i16,
     pub is_active: bool,
+    pub coingecko_id: Option<String>,
     pub created_at: chrono::DateTime<Utc>,
 }

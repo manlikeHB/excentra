@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct AssetSymbol(String); // BTC/USDT
 
@@ -20,6 +22,21 @@ impl From<AssetSymbolError> for String {
                 "Invalid asset symbol, expected e.g `BTC-USDT`".to_string()
             }
             AssetSymbolError::MarketNotSupported(m) => format!("{m} market not supported"),
+        }
+    }
+}
+
+impl fmt::Display for AssetSymbolError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AssetSymbolError::EmptySymbol => write!(f, "Symbol can not be empty"),
+            AssetSymbolError::InvalidSymbol => {
+                write!(f, "Invalid asset symbol, expected e.g `BTC/USDT`")
+            }
+            AssetSymbolError::InvalidSymbolFormReqPath => {
+                write!(f, "Invalid asset symbol, expected e.g `BTC-USDT`")
+            }
+            AssetSymbolError::MarketNotSupported(m) => write!(f, "{m} market not supported"),
         }
     }
 }
@@ -93,6 +110,10 @@ impl AssetSymbol {
         }
 
         Ok(())
+    }
+
+    pub fn as_binance_symbol(&self) -> String {
+        format!("{}{}", self.base_asset(), self.quote_asset())
     }
 }
 
