@@ -42,13 +42,16 @@ RETURNING id, user_id, asset, available, held, updated_at"#,
     .await
 }
 
-pub async fn hold(
-    pool: &PgPool,
+pub async fn hold<'e, E>(
+    executor: E,
     user_id: Uuid,
     asset: &str,
     amount: Decimal,
-) -> Result<Balance, sqlx::Error> {
-    sqlx::query_as!(Balance, r#"UPDATE balances SET available = available - $3, held = held + $3, updated_at = NOW() WHERE user_id = $1 AND asset = $2 AND available >= $3 RETURNING id, user_id, asset, available, held, updated_at"#, user_id, asset, amount).fetch_one(pool).await
+) -> Result<Balance, sqlx::Error>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
+    sqlx::query_as!(Balance, r#"UPDATE balances SET available = available - $3, held = held + $3, updated_at = NOW() WHERE user_id = $1 AND asset = $2 AND available >= $3 RETURNING id, user_id, asset, available, held, updated_at"#, user_id, asset, amount).fetch_one(executor).await
 }
 
 pub async fn release(

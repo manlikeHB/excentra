@@ -68,6 +68,12 @@ impl PriceSeedService {
     }
 
     pub async fn seed_prices(&self) -> Result<(), AppError> {
+        let existing =
+            db_queries::get_open_orders_by_user(&self.pool, constants::SYSTEM_USER_ID).await?;
+        if !existing.is_empty() {
+            return Ok(());
+        }
+
         let assets = db_queries::get_assets_with_coingecko_ids(&self.pool).await?;
         let pairs = db_queries::get_active_trading_pairs(&self.pool).await?;
 
@@ -117,6 +123,8 @@ impl PriceSeedService {
             (price * (Decimal::ONE + spread * dec!(3)), dec!(2.0)),
         ];
 
+        let mut tx = self.pool.begin().await?;
+
         for (bid_price, quantity) in bids {
             let mut order = Order::new(
                 Uuid::new_v4(),
@@ -128,22 +136,24 @@ impl PriceSeedService {
                 quantity,
                 quantity,
             );
-            self.exchange
-                .lock()
-                .await
-                .place_order(pair.id, &mut order)?;
 
             // hold quote asset
             db_queries::hold(
-                &self.pool,
+                &mut *tx,
                 constants::SYSTEM_USER_ID,
                 &pair.quote_asset,
                 bid_price * quantity,
             )
             .await?;
 
+            // place order
+            self.exchange
+                .lock()
+                .await
+                .place_order(pair.id, &mut order)?;
+
             // persist order in db
-            db_queries::create_order(&self.pool, order.into()).await?;
+            db_queries::create_order(&mut *tx, order.into()).await?;
         }
 
         for (ask_price, quantity) in asks {
@@ -157,23 +167,27 @@ impl PriceSeedService {
                 quantity,
                 quantity,
             );
-            self.exchange
-                .lock()
-                .await
-                .place_order(pair.id, &mut order)?;
 
             // hold base asset
             db_queries::hold(
-                &self.pool,
+                &mut *tx,
                 constants::SYSTEM_USER_ID,
                 &pair.base_asset,
                 quantity,
             )
             .await?;
 
+            // place order
+            self.exchange
+                .lock()
+                .await
+                .place_order(pair.id, &mut order)?;
+
             // persist order in db
-            db_queries::create_order(&self.pool, order.into()).await?;
+            db_queries::create_order(&mut *tx, order.into()).await?;
         }
+
+        tx.commit().await?;
 
         Ok(())
     }

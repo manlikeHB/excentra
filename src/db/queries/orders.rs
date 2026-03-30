@@ -145,3 +145,23 @@ pub async fn get_open_orders_by_pair(
     .fetch_all(pool)
     .await
 }
+
+pub async fn get_open_orders_by_user(
+    pool: &PgPool,
+    user_id: Uuid,
+) -> Result<Vec<OrderResponse>, sqlx::Error> {
+    sqlx::query_as!(
+        OrderResponse,
+        r#"SELECT o.id, tp.symbol, o.side as "side: DBOrderSide", 
+        o.order_type as "order_type: DBOrderType", o.price, o.quantity, 
+        o.remaining_quantity, o.status as "status: DBOrderStatus", 
+        o.created_at, o.updated_at
+        FROM orders o
+        JOIN trading_pairs tp ON o.pair_id = tp.id
+        WHERE o.user_id = $1 AND status = 'open'
+        ORDER BY o.created_at DESC"#,
+        user_id
+    )
+    .fetch_all(pool)
+    .await
+}
