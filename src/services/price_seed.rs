@@ -117,8 +117,6 @@ impl PriceSeedService {
             (price * (Decimal::ONE + spread * dec!(3)), dec!(2.0)),
         ];
 
-        let mut exchange = self.exchange.lock().await;
-
         for (bid_price, quantity) in bids {
             let mut order = Order::new(
                 Uuid::new_v4(),
@@ -130,7 +128,10 @@ impl PriceSeedService {
                 quantity,
                 quantity,
             );
-            exchange.place_order(pair.id, &mut order)?;
+            self.exchange
+                .lock()
+                .await
+                .place_order(pair.id, &mut order)?;
 
             // hold quote asset
             db_queries::hold(
@@ -156,7 +157,10 @@ impl PriceSeedService {
                 quantity,
                 quantity,
             );
-            exchange.place_order(pair.id, &mut order)?;
+            self.exchange
+                .lock()
+                .await
+                .place_order(pair.id, &mut order)?;
 
             // hold base asset
             db_queries::hold(
