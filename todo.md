@@ -7,3 +7,7 @@
 
 ### Order
 - add a check `buyer_id == seller_id` to prevent wash trading
+
+
+## missing routes
+- orders/:user_id

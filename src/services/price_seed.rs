@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
+use crate::constants;
 use crate::db::models::trading_pairs::DBTradingPair;
 use crate::db::queries as db_queries;
 use crate::engine::models::order::{Order, OrderSide, OrderType};
@@ -121,7 +122,7 @@ impl PriceSeedService {
         for (bid_price, quantity) in bids {
             let mut order = Order::new(
                 Uuid::new_v4(),
-                Uuid::nil(), // system order — no real user
+                constants::SYSTEM_USER_ID, // system user
                 pair.id,
                 OrderSide::Buy,
                 OrderType::Limit,
@@ -130,12 +131,24 @@ impl PriceSeedService {
                 quantity,
             );
             exchange.place_order(pair.id, &mut order)?;
+
+            // hold quote asset
+            db_queries::hold(
+                &self.pool,
+                constants::SYSTEM_USER_ID,
+                &pair.quote_asset,
+                bid_price * quantity,
+            )
+            .await?;
+
+            // persist order in db
+            db_queries::create_order(&self.pool, order.into()).await?;
         }
 
         for (ask_price, quantity) in asks {
             let mut order = Order::new(
                 Uuid::new_v4(),
-                Uuid::nil(),
+                constants::SYSTEM_USER_ID,
                 pair.id,
                 OrderSide::Sell,
                 OrderType::Limit,
@@ -144,6 +157,18 @@ impl PriceSeedService {
                 quantity,
             );
             exchange.place_order(pair.id, &mut order)?;
+
+            // hold base asset
+            db_queries::hold(
+                &self.pool,
+                constants::SYSTEM_USER_ID,
+                &pair.base_asset,
+                quantity,
+            )
+            .await?;
+
+            // persist order in db
+            db_queries::create_order(&self.pool, order.into()).await?;
         }
 
         Ok(())

@@ -6,6 +6,7 @@ use uuid::Uuid;
 pub enum UserRole {
     User,
     Admin,
+    System,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]

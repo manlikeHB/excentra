@@ -1,0 +1,9 @@
+-- Add migration script here
+INSERT INTO users (id, email, password_hash, role) 
+VALUES ('00000000-0000-0000-0000-000000000001', 'system@excentra.com', '', 'system');
+
+INSERT INTO balances (user_id, asset, available, held) VALUES
+('00000000-0000-0000-0000-000000000001', 'BTC', 1000000, 0),
+('00000000-0000-0000-0000-000000000001', 'ETH', 1000000, 0),
+('00000000-0000-0000-0000-000000000001', 'SOL', 1000000, 0),
+('00000000-0000-0000-0000-000000000001', 'USDT', 1000000000, 0);
