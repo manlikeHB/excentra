@@ -8,6 +8,7 @@ use excentra::{
         asset::{add_asset, get_all_assets},
         orderbook::get_orderbook,
         orders::get_order_by_id,
+        ticker::get_ticker,
         trading_pairs::{get_active_trading_pairs, get_all_trading_pairs},
         ws::ws_handler,
     },
@@ -105,6 +106,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let orderbook_router = Router::new().route("/{symbol}", get(get_orderbook));
 
+    let ticker_router = Router::new().route("/{symbol}", get(get_ticker));
+
     let api_routes = Router::new()
         .nest("/auth", auth_router)
         .nest("/orders", order_router)
@@ -112,7 +115,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/pairs", pair_router)
         .nest("/trades", trades_router)
         .nest("/assets", asset_router)
-        .nest("/orderbook", orderbook_router);
+        .nest("/orderbook", orderbook_router)
+        .nest("/ticker", ticker_router);
 
     let app = Router::new()
         .nest(&config.base_url, api_routes)

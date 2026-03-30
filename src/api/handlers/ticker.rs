@@ -1,0 +1,22 @@
+use std::sync::Arc;
+
+use axum::{
+    Json,
+    extract::{Path, State},
+};
+use reqwest::StatusCode;
+
+use crate::{
+    api::types::AppState, error::AppError, services::ticker::Ticker,
+    types::asset_symbol::AssetSymbol,
+};
+
+pub async fn get_ticker(
+    State(state): State<Arc<AppState>>,
+    Path(symbol): Path<String>,
+) -> Result<(StatusCode, Json<Ticker>), AppError> {
+    let symbol = AssetSymbol::from_path(&symbol)?;
+    let ticker = state.ticker_service.get_pair_ticker_stats(symbol).await?;
+
+    Ok((StatusCode::OK, Json(ticker)))
+}
