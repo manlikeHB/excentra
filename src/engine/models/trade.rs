@@ -17,7 +17,6 @@ pub struct Trade {
 
 impl Trade {
     pub fn new(
-        id: Uuid,
         pair_id: Uuid,
         buyer_id: Uuid,
         seller_id: Uuid,
@@ -25,10 +24,9 @@ impl Trade {
         sell_order_id: Uuid,
         price: Decimal,
         quantity: Decimal,
-        created_at: DateTime<Utc>,
     ) -> Self {
         Trade {
-            id,
+            id: Uuid::new_v4(),
             pair_id,
             buyer_id,
             seller_id,
@@ -36,7 +34,7 @@ impl Trade {
             sell_order_id,
             price,
             quantity,
-            created_at,
+            created_at: chrono::Utc::now(),
         }
     }
 

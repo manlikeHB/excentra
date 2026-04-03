@@ -114,9 +114,10 @@ impl OrderBook {
     }
 
     pub fn match_order(&mut self, order: &mut Order) -> Result<MatchResult, EngineError> {
-        match order.order_type() {
-            OrderType::Limit => self.match_limit_order(order),
-            OrderType::Market => self.match_market_order(order),
+        match (order.order_type(), order.side()) {
+            (OrderType::Limit, _) => self.match_limit_order(order),
+            (OrderType::Market, OrderSide::Sell) => self.match_market_order(order),
+            (OrderType::Market, OrderSide::Buy) => Ok(self.match_market_buy(order)),
         }
     }
 
@@ -218,7 +219,6 @@ impl OrderBook {
 
                         let trade = match order.side() {
                             OrderSide::Buy => Trade::new(
-                                Uuid::new_v4(),
                                 order.pair_id(),
                                 order.user_id(),
                                 book_order.user_id(),
@@ -226,10 +226,8 @@ impl OrderBook {
                                 book_order.id(),
                                 book_price,
                                 traded_quantity,
-                                chrono::Utc::now(),
                             ),
                             OrderSide::Sell => Trade::new(
-                                Uuid::new_v4(),
                                 order.pair_id(),
                                 book_order.user_id(),
                                 order.user_id(),
@@ -237,7 +235,6 @@ impl OrderBook {
                                 order.id(),
                                 book_price,
                                 traded_quantity,
-                                chrono::Utc::now(),
                             ),
                         };
 
@@ -288,6 +285,74 @@ impl OrderBook {
         }
 
         OrderBookSnapshot { bids, asks }
+    }
+
+    pub fn match_market_buy(&mut self, order: &mut Order) -> MatchResult {
+        // for a market buy order, remaining_quantity represents the quote budget
+        // (e.g. 500 USDT) the trader is willing to spend, not base quantity
+        let mut budget = order.remaining_quantity();
+        let mut trades = Vec::new();
+
+        'outer: for (ask_price, side) in self.asks.iter_mut() {
+            while let Some(resting_order) = side.front_mut() {
+                let cost_of_full_fill = resting_order.remaining_quantity() * ask_price;
+
+                if budget >= cost_of_full_fill {
+                    let fill_qty = resting_order.remaining_quantity();
+                    resting_order.reduce_quantity(fill_qty);
+                    order.reduce_quantity(cost_of_full_fill);
+                    budget -= cost_of_full_fill;
+
+                    let trade = Trade::new(
+                        order.pair_id(),
+                        order.user_id(),
+                        resting_order.user_id(),
+                        order.id(),
+                        resting_order.id(),
+                        *ask_price,
+                        fill_qty,
+                    );
+                    trades.push(trade);
+
+                    self.index.remove(&resting_order.id());
+                    side.pop_front();
+
+                    if budget == Decimal::ZERO {
+                        break 'outer;
+                    }
+                } else {
+                    let filled_qty = budget / ask_price;
+                    resting_order.reduce_quantity(filled_qty);
+                    order.reduce_quantity(filled_qty * ask_price);
+                    budget = Decimal::ZERO;
+
+                    let trade = Trade::new(
+                        order.pair_id(),
+                        order.user_id(),
+                        resting_order.user_id(),
+                        order.id(),
+                        resting_order.id(),
+                        *ask_price,
+                        filled_qty,
+                    );
+                    trades.push(trade);
+
+                    break 'outer;
+                }
+            }
+        }
+
+        // clean up empty price levels
+        self.asks.retain(|_, orders| !orders.is_empty());
+
+        // set final status based on remaining budget
+        if budget > Decimal::ZERO {
+            order.set_status(OrderStatus::Cancelled);
+        } else {
+            order.set_status(OrderStatus::Filled);
+        }
+
+        MatchResult::new(trades, order.status(), order.remaining_quantity())
     }
 }
 

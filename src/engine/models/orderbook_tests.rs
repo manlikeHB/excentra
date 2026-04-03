@@ -672,7 +672,8 @@ mod orderbook_tests {
         book.add_limit_order(limit_sell(dec!(102), dec!(2)))
             .unwrap();
 
-        let mut buy = market_buy(dec!(5));
+        // budget - (100 * 2) + (102 * 2)
+        let mut buy = market_buy((dec!(100) * dec!(3)) + (dec!(102) * dec!(2)));
         let result = book.match_order(&mut buy).unwrap();
 
         assert_eq!(result.trades().len(), 2);
@@ -685,66 +686,6 @@ mod orderbook_tests {
 
         assert_eq!(book.best_ask(), None);
         assert_eq!(book.best_bid(), None); // market order should NOT rest
-    }
-
-    #[test]
-    fn test_market_buy_partial_fill_remainder_cancelled() {
-        let mut book = OrderBook::new();
-
-        // Only 3 available on ask side
-        book.add_limit_order(limit_sell(dec!(100), dec!(3)))
-            .unwrap();
-
-        // Market buy for 5 — fills 3, remaining 2 should be cancelled
-        let mut buy = market_buy(dec!(5));
-        let result = book.match_order(&mut buy).unwrap();
-
-        assert_eq!(result.trades().len(), 1);
-        assert_eq!(result.trades()[0].quantity(), dec!(3));
-        assert!(matches!(result.status(), OrderStatus::Cancelled));
-        assert_eq!(result.remaining_quantity(), dec!(2));
-
-        // Book should be completely empty — market order does NOT rest
-        assert_eq!(book.best_ask(), None);
-        assert_eq!(book.best_bid(), None);
-    }
-
-    #[test]
-    fn test_market_buy_empty_book() {
-        let mut book = OrderBook::new();
-
-        let mut buy = market_buy(dec!(5));
-        let result = book.match_order(&mut buy).unwrap();
-
-        assert_eq!(result.trades().len(), 0);
-        assert!(matches!(result.status(), OrderStatus::Cancelled));
-        assert_eq!(result.remaining_quantity(), dec!(5));
-
-        // Nothing in book
-        assert_eq!(book.best_bid(), None);
-        assert_eq!(book.best_ask(), None);
-    }
-
-    #[test]
-    fn test_market_buy_fills_across_all_price_levels() {
-        let mut book = OrderBook::new();
-
-        book.add_limit_order(limit_sell(dec!(100), dec!(1)))
-            .unwrap();
-        book.add_limit_order(limit_sell(dec!(200), dec!(1)))
-            .unwrap();
-        book.add_limit_order(limit_sell(dec!(500), dec!(1)))
-            .unwrap();
-
-        // Market buy — no price limit, should fill all three regardless of price
-        let mut buy = market_buy(dec!(3));
-        let result = book.match_order(&mut buy).unwrap();
-
-        assert_eq!(result.trades().len(), 3);
-        assert_eq!(result.trades()[0].price(), dec!(100));
-        assert_eq!(result.trades()[1].price(), dec!(200));
-        assert_eq!(result.trades()[2].price(), dec!(500));
-        assert!(matches!(result.status(), OrderStatus::Filled));
     }
 
     // ============================================================
@@ -1040,5 +981,120 @@ mod orderbook_tests {
         // only order2 remains at this level
         assert_eq!(snapshot.bids().len(), 1);
         assert_eq!(snapshot.bids()[0].quantity(), dec!(3));
+    }
+
+    // ============================================================
+    // Market Buy (quote budget)
+    // ============================================================
+
+    #[test]
+    fn test_market_buy_budget_full_fill_single_level() {
+        let mut book = OrderBook::new();
+
+        // 3 BTC available at $100
+        book.add_limit_order(limit_sell(dec!(100), dec!(3)))
+            .unwrap();
+
+        // budget = 300 USDT — exactly enough to buy all 3 BTC
+        let mut buy = market_buy(dec!(300));
+        let result = book.match_order(&mut buy).unwrap();
+
+        assert_eq!(result.trades().len(), 1);
+        assert_eq!(result.trades()[0].price(), dec!(100));
+        assert_eq!(result.trades()[0].quantity(), dec!(3)); // base qty filled
+        assert!(matches!(result.status(), OrderStatus::Filled));
+
+        assert_eq!(book.best_ask(), None); // resting order consumed
+    }
+
+    #[test]
+    fn test_market_buy_budget_full_fill_multiple_levels() {
+        let mut book = OrderBook::new();
+
+        book.add_limit_order(limit_sell(dec!(100), dec!(2)))
+            .unwrap();
+        book.add_limit_order(limit_sell(dec!(200), dec!(1)))
+            .unwrap();
+
+        // budget = 400 USDT — covers 2 BTC @ 100 + 1 BTC @ 200
+        let mut buy = market_buy(dec!(400));
+        let result = book.match_order(&mut buy).unwrap();
+
+        assert_eq!(result.trades().len(), 2);
+        assert_eq!(result.trades()[0].price(), dec!(100));
+        assert_eq!(result.trades()[0].quantity(), dec!(2));
+        assert_eq!(result.trades()[1].price(), dec!(200));
+        assert_eq!(result.trades()[1].quantity(), dec!(1));
+        assert!(matches!(result.status(), OrderStatus::Filled));
+
+        assert_eq!(book.best_ask(), None);
+    }
+
+    #[test]
+    fn test_market_buy_budget_partial_fill_insufficient_liquidity() {
+        let mut book = OrderBook::new();
+
+        // Only 1 BTC available at $100
+        book.add_limit_order(limit_sell(dec!(100), dec!(1)))
+            .unwrap();
+
+        // budget = 500 USDT — more than enough but book runs dry
+        let mut buy = market_buy(dec!(500));
+        let result = book.match_order(&mut buy).unwrap();
+
+        assert_eq!(result.trades().len(), 1);
+        assert_eq!(result.trades()[0].quantity(), dec!(1));
+        assert!(matches!(result.status(), OrderStatus::Cancelled));
+
+        assert_eq!(book.best_ask(), None);
+    }
+
+    #[test]
+    fn test_market_buy_budget_partial_spend_at_price_level() {
+        let mut book = OrderBook::new();
+
+        // 5 BTC at $100 — but buyer only has budget for 2 BTC
+        book.add_limit_order(limit_sell(dec!(100), dec!(5)))
+            .unwrap();
+
+        // budget = 200 USDT — can only buy 2 BTC
+        let mut buy = market_buy(dec!(200));
+        let result = book.match_order(&mut buy).unwrap();
+
+        assert_eq!(result.trades().len(), 1);
+        assert_eq!(result.trades()[0].price(), dec!(100));
+        assert_eq!(result.trades()[0].quantity(), dec!(2)); // only 2 BTC filled
+        assert!(matches!(result.status(), OrderStatus::Filled));
+
+        // 3 BTC should still be resting
+        assert_eq!(book.best_ask(), Some(dec!(100)));
+    }
+
+    #[test]
+    fn test_market_buy_empty_book() {
+        let mut book = OrderBook::new();
+
+        let mut buy = market_buy(dec!(500));
+        let result = book.match_order(&mut buy).unwrap();
+
+        assert_eq!(result.trades().len(), 0);
+        assert!(matches!(result.status(), OrderStatus::Cancelled));
+        assert_eq!(book.best_ask(), None);
+    }
+
+    #[test]
+    fn test_market_buy_budget_does_not_rest_in_book() {
+        let mut book = OrderBook::new();
+
+        book.add_limit_order(limit_sell(dec!(100), dec!(1)))
+            .unwrap();
+
+        // budget only covers half
+        let mut buy = market_buy(dec!(50));
+        let result = book.match_order(&mut buy).unwrap();
+
+        // market buy should never rest in the book regardless of outcome
+        assert_eq!(book.best_bid(), None);
+        assert!(matches!(result.status(), OrderStatus::Filled));
     }
 }

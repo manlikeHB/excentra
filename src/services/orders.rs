@@ -14,7 +14,11 @@ use crate::{
         order::{DBOrder, DBOrderStatus},
         trading_pairs::DBTradingPair,
     },
-    engine::{exchange::Exchange, matcher::MatchResult, models::order::Order},
+    engine::{
+        exchange::Exchange,
+        matcher::MatchResult,
+        models::order::{Order, OrderSide, OrderStatus, OrderType},
+    },
     error::AppError,
     types::asset_symbol::AssetSymbol,
     ws::messages::WsEvent,
@@ -86,6 +90,22 @@ impl OrderService {
             }
         };
 
+        // release unspent budget for a market buy order
+        match (order.order_type(), order.side()) {
+            (OrderType::Market, OrderSide::Buy) => {
+                if match_result.status() == &OrderStatus::Cancelled {
+                    db_queries::release(
+                        &self.pool,
+                        user_id,
+                        &trading_pair.quote_asset,
+                        order.remaining_quantity(),
+                    )
+                    .await?;
+                }
+            }
+            (_, _) => (),
+        }
+
         // persist order in DB
         let place_order_response = self
             .persist_order_and_trades(
@@ -110,6 +130,8 @@ impl OrderService {
         }
     }
 
+    // quantity param in PlaceOrderRequest represents the quantity to buy or sell, but
+    // for a market buy it represents the budget (max spend for the quote asset)
     async fn validate_and_hold_balance(
         &self,
         body: &PlaceOrderRequest,
@@ -121,67 +143,47 @@ impl OrderService {
                 match body.side {
                     // check quote balance when buying base asset
                     DBOrderSide::Buy => {
-                        match db_queries::get_balance(
-                            &self.pool,
-                            user_id,
-                            &trading_pair.quote_asset,
-                        )
-                        .await?
-                        {
-                            Some(bal) => {
-                                let price = match body.price {
-                                    Some(p) => p,
-                                    None => {
-                                        return Err(
-                                            OrderRequestValidationError::InvalidLimitOrder.into()
-                                        );
-                                    }
-                                };
-                                let cost = price * body.quantity;
-                                if bal.available < cost {
-                                    return Err(AppError::Unprocessable(format!(
-                                        "Insufficient available {} balance",
-                                        bal.asset
-                                    )));
-                                } else {
-                                    // hold the quote asset
-                                    db_queries::hold(
-                                        &self.pool,
-                                        user_id,
-                                        &trading_pair.quote_asset,
-                                        cost,
-                                    )
-                                    .await?;
-                                    (trading_pair.quote_asset.clone(), cost)
-                                }
-                            }
+                        let price = match body.price {
+                            Some(p) => p,
                             None => {
-                                return Err(AppError::Unprocessable(format!(
-                                    "Insufficient available {} balance",
-                                    trading_pair.quote_asset
-                                )));
+                                return Err(OrderRequestValidationError::InvalidLimitOrder.into());
                             }
-                        }
+                        };
+                        let cost = price * body.quantity;
+
+                        self.check_balance_and_hold_asset(user_id, &trading_pair.quote_asset, cost)
+                            .await?
                     }
                     DBOrderSide::Sell => {
                         // check base balance when selling for some quote asset
-                        self.check_balance_and_hold_base(user_id, &trading_pair, body.quantity)
-                            .await?
+                        self.check_balance_and_hold_asset(
+                            user_id,
+                            &trading_pair.base_asset,
+                            body.quantity,
+                        )
+                        .await?
                     }
                 }
             }
             DBOrderType::Market => {
                 match body.side {
-                    //TODO: check quote balance against what trader is willing to spend
+                    // check quote balance against what trader is willing to spend (budget)
                     DBOrderSide::Buy => {
-                        return Err(AppError::BadRequest(
-                            "Market buy not yet supported".to_string(),
-                        ));
+                        self.check_balance_and_hold_asset(
+                            user_id,
+                            &trading_pair.quote_asset,
+                            body.quantity,
+                        )
+                        .await?
                     }
                     DBOrderSide::Sell => {
                         // check base balance when selling for some quote asset
-                        self.check_balance_and_hold_base(user_id, &trading_pair, body.quantity)
-                            .await?
+                        self.check_balance_and_hold_asset(
+                            user_id,
+                            &trading_pair.base_asset,
+                            body.quantity,
+                        )
+                        .await?
                     }
                 }
             }
@@ -190,30 +192,29 @@ impl OrderService {
         Ok((asset.clone(), amount))
     }
 
-    async fn check_balance_and_hold_base(
+    async fn check_balance_and_hold_asset(
         &self,
         user_id: Uuid,
-        trading_pair: &DBTradingPair,
-        quantity: Decimal,
+        asset: &str,
+        amount: Decimal,
     ) -> Result<(String, Decimal), AppError> {
-        match db_queries::get_balance(&self.pool, user_id, &trading_pair.base_asset).await? {
+        match db_queries::get_balance(&self.pool, user_id, asset).await? {
             Some(bal) => {
-                if bal.available < quantity {
+                if bal.available < amount {
                     return Err(AppError::Unprocessable(format!(
                         "Insufficient available {} balance",
                         bal.asset
                     )));
                 } else {
                     // hold base asset
-                    db_queries::hold(&self.pool, user_id, &trading_pair.base_asset, quantity)
-                        .await?;
-                    Ok((trading_pair.base_asset.clone(), quantity))
+                    db_queries::hold(&self.pool, user_id, asset, amount).await?;
+                    Ok((asset.to_string(), amount))
                 }
             }
             None => {
                 return Err(AppError::Unprocessable(format!(
                     "Insufficient available {} balance",
-                    trading_pair.base_asset
+                    asset
                 )));
             }
         }
