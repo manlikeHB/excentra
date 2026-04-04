@@ -323,7 +323,7 @@ impl OrderBook {
                 } else {
                     let filled_qty = budget / ask_price;
                     resting_order.reduce_quantity(filled_qty);
-                    order.reduce_quantity(filled_qty * ask_price);
+                    order.reduce_quantity(budget);
                     budget = Decimal::ZERO;
 
                     let trade = Trade::new(

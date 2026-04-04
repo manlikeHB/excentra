@@ -71,8 +71,10 @@ pub async fn transfer_on_fill(
     quote_asset: &str,
     qty: Decimal,
     price: Decimal,
+    quote_precision: u32,
 ) -> Result<(), sqlx::Error> {
-    let cost = qty * price;
+    // round cost to the quote asset decimal precision to avoid negative balance
+    let cost = (qty * price).round_dp(quote_precision);
 
     // buyer - quote bal
     sqlx::query!(r#"UPDATE balances SET held = held - $1, updated_at = NOW() WHERE user_id = $2 AND asset = $3"#, cost, buyer_id, quote_asset).execute(&mut **tx).await?;

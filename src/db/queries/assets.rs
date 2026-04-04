@@ -14,6 +14,19 @@ pub async fn is_valid_asset(pool: &PgPool, symbol: &str) -> Result<bool, sqlx::E
     Ok(result.exists)
 }
 
+pub async fn find_asset_by_symbol(
+    pool: &PgPool,
+    symbol: &str,
+) -> Result<Option<Asset>, sqlx::Error> {
+    sqlx::query_as!(
+        Asset,
+        r#"SELECT * FROM assets WHERE is_active = true AND symbol = $1"#,
+        symbol
+    )
+    .fetch_optional(pool)
+    .await
+}
+
 pub async fn get_all_assets(pool: &PgPool) -> Result<Vec<Asset>, sqlx::Error> {
     sqlx::query_as!(Asset, r#"SELECT * FROM assets"#)
         .fetch_all(pool)

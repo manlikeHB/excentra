@@ -17,10 +17,10 @@ use crate::{
     engine::{
         exchange::Exchange,
         matcher::MatchResult,
-        models::order::{Order, OrderSide, OrderStatus, OrderType},
+        models::order::{Order, OrderSide, OrderType},
     },
     error::AppError,
-    types::asset_symbol::AssetSymbol,
+    types::asset_symbol::{self, AssetSymbol},
     ws::messages::WsEvent,
 };
 
@@ -53,8 +53,20 @@ impl OrderService {
         user_id: Uuid,
         body: PlaceOrderRequest,
     ) -> Result<PlaceOrderResponse, AppError> {
+        let asset_symbol = AssetSymbol::new(&body.symbol)?;
         // get trading pair
-        let trading_pair = self.get_trading_pair(&body.symbol).await?;
+        let trading_pair = self.get_trading_pair(asset_symbol.as_str()).await?;
+        // get quote asset
+        let quote_asset =
+            match db_queries::find_asset_by_symbol(&self.pool, asset_symbol.quote_asset()).await? {
+                Some(a) => a,
+                None => {
+                    return Err(AppError::InternalError(format!(
+                        "Invalid Asset: {} symbol in trading pair",
+                        &trading_pair.quote_asset
+                    )));
+                }
+            };
 
         // validate balance
         let (asset, amount) = self
@@ -93,14 +105,10 @@ impl OrderService {
         // release unspent budget for a market buy order
         match (order.order_type(), order.side()) {
             (OrderType::Market, OrderSide::Buy) => {
-                if match_result.status() == &OrderStatus::Cancelled {
-                    db_queries::release(
-                        &self.pool,
-                        user_id,
-                        &trading_pair.quote_asset,
-                        order.remaining_quantity(),
-                    )
-                    .await?;
+                let unspent = order.remaining_quantity();
+                if unspent > Decimal::ZERO {
+                    db_queries::release(&self.pool, user_id, &trading_pair.quote_asset, unspent)
+                        .await?;
                 }
             }
             (_, _) => (),
@@ -113,6 +121,7 @@ impl OrderService {
                 match_result,
                 &trading_pair.base_asset,
                 &trading_pair.quote_asset,
+                quote_asset.decimals as u32,
             )
             .await?;
 
@@ -226,6 +235,7 @@ impl OrderService {
         match_result: MatchResult,
         base_asset: &str,
         quote_asset: &str,
+        quote_precision: u32,
     ) -> Result<PlaceOrderResponse, AppError> {
         let mut tx = self.pool.begin().await?;
         let mut final_trades = Vec::new();
@@ -277,10 +287,11 @@ impl OrderService {
                 &mut tx,
                 trade.buyer_id(),
                 trade.seller_id(),
-                base_asset,
-                quote_asset,
+                symbol.base_asset(),
+                symbol.quote_asset(),
                 trade.quantity(),
                 trade.price(),
+                quote_precision,
             )
             .await?;
 
@@ -330,11 +341,24 @@ impl OrderService {
         };
         let _ = self.ws_sender.send(ws_event);
 
+        // filled quantity has to be calculated for market buy orders since remaining_quantity field held the quote asset budget
+        let filled_quantity = match (order.order_type(), order.side()) {
+            (OrderType::Market, OrderSide::Buy) => final_trades.iter().map(|t| t.quantity).sum(),
+            _ => order.quantity() - order.remaining_quantity(),
+        };
+
+        // remaining_quantity for market buy order is set to zero since it's either totally
+        // filled or remaining budget is returned to the buyer
+        let remaining_quantity = match (order.order_type(), order.side()) {
+            (OrderType::Market, OrderSide::Buy) => Decimal::ZERO,
+            _ => order.remaining_quantity(),
+        };
+
         let place_order_response = PlaceOrderResponse {
             order_id: order.id(),
             status: order.status().into(),
-            filled_quantity: order.quantity() - order.remaining_quantity(),
-            remaining_quantity: order.remaining_quantity(),
+            filled_quantity,
+            remaining_quantity,
             trades: final_trades,
         };
 
