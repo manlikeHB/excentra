@@ -20,7 +20,7 @@ use crate::{
         models::order::{Order, OrderSide, OrderType},
     },
     error::AppError,
-    types::asset_symbol::{self, AssetSymbol},
+    types::asset_symbol::AssetSymbol,
     ws::messages::WsEvent,
 };
 
@@ -102,25 +102,12 @@ impl OrderService {
             }
         };
 
-        // release unspent budget for a market buy order
-        match (order.order_type(), order.side()) {
-            (OrderType::Market, OrderSide::Buy) => {
-                let unspent = order.remaining_quantity();
-                if unspent > Decimal::ZERO {
-                    db_queries::release(&self.pool, user_id, &trading_pair.quote_asset, unspent)
-                        .await?;
-                }
-            }
-            (_, _) => (),
-        }
-
         // persist order in DB
         let place_order_response = self
             .persist_order_and_trades(
                 order,
                 match_result,
-                &trading_pair.base_asset,
-                &trading_pair.quote_asset,
+                asset_symbol,
                 quote_asset.decimals as u32,
             )
             .await?;
@@ -233,14 +220,11 @@ impl OrderService {
         &self,
         order: Order,
         match_result: MatchResult,
-        base_asset: &str,
-        quote_asset: &str,
+        symbol: AssetSymbol,
         quote_precision: u32,
     ) -> Result<PlaceOrderResponse, AppError> {
         let mut tx = self.pool.begin().await?;
         let mut final_trades = Vec::new();
-        let symbol = AssetSymbol::new(&format!("{}/{}", base_asset, quote_asset))
-            .map_err(|_| AppError::InternalError("Invalid trading pair symbol".to_string()))?;
 
         db_queries::create_order(&mut *tx, order.into()).await?;
 
@@ -313,6 +297,18 @@ impl OrderService {
                 remaining_quantity: resting_order.remaining_quantity(),
             };
             let _ = self.ws_sender.send(ws_event);
+        }
+
+        // release unspent budget for a market buy order
+        match (order.order_type(), order.side()) {
+            (OrderType::Market, OrderSide::Buy) => {
+                let unspent = order.remaining_quantity();
+                if unspent > Decimal::ZERO {
+                    db_queries::release(&mut *tx, order.user_id(), &symbol.quote_asset(), unspent)
+                        .await?;
+                }
+            }
+            (_, _) => (),
         }
 
         tx.commit().await?;
