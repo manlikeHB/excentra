@@ -416,9 +416,12 @@ impl OrderService {
             DBOrderSide::Sell => (order.remaining_quantity, trading_pair.base_asset),
         };
 
-        db_queries::release(&self.pool, user_id, &asset, amount).await?;
+        let mut tx = self.pool.begin().await?;
+        db_queries::release(&mut *tx, user_id, &asset, amount).await?;
 
-        db_queries::update_order_status(&self.pool, order_id, DBOrderStatus::Cancelled).await?;
+        db_queries::update_order_status(&mut *tx, order_id, DBOrderStatus::Cancelled).await?;
+
+        tx.commit().await?;
 
         // update status
         order.status = DBOrderStatus::Cancelled;

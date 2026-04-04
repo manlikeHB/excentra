@@ -40,11 +40,14 @@ where
     .await
 }
 
-pub async fn update_order_status(
-    pool: &PgPool,
+pub async fn update_order_status<'e, E>(
+    executor: E,
     order_id: Uuid,
     status: DBOrderStatus,
-) -> Result<Option<DBOrder>, sqlx::Error> {
+) -> Result<Option<DBOrder>, sqlx::Error>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
     sqlx::query_as!(
         DBOrder,
         r#"UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2 
@@ -61,7 +64,7 @@ pub async fn update_order_status(
         status as DBOrderStatus,
         order_id
     )
-    .fetch_optional(pool)
+    .fetch_optional(executor)
     .await
 }
 
