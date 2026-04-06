@@ -21,6 +21,120 @@ Excentra models how real exchanges like Binance or Kraken work under the hood �
 
 ---
 
+## Getting Started
+
+### Prerequisites
+
+- [Rust](https://rustup.rs/) (stable, edition 2024)
+- [PostgreSQL](https://www.postgresql.org/) (v14+)
+- [sqlx-cli](https://github.com/launchbadge/sqlx/tree/main/sqlx-cli)
+```bash
+cargo install sqlx-cli --no-default-features --features rustls,postgres
+```
+
+---
+
+### 1. Clone the repo
+```bash
+git clone https://github.com/manlikeHB/excentra.git
+cd excentra
+```
+
+---
+
+### 2. Configure environment
+
+Copy the example and fill in your values:
+```bash
+cp .env.example .env
+```
+
+`.env`:
+```env
+DATABASE_URL=postgres://postgres:password@localhost:5432/excentra
+JWT_SECRET=your-secret-key-here
+API_VERSION=v1
+PORT=3000
+RUST_LOG=info,tower_http=debug
+```
+
+> **Note:** The server will panic at startup if any of these are missing — this is intentional.
+
+---
+
+### 3. Set up the database
+```bash
+# Create the database
+sqlx database create
+
+# Run all migrations
+sqlx migrate run
+```
+
+This creates all tables and seeds BTC/USDT, ETH/USDT, and SOL/USDT trading pairs.
+
+---
+
+### 4. Run the server
+```bash
+cargo run
+```
+
+On startup, the server will:
+- Rebuild the in-memory order book from open orders in the database
+- Fetch live prices from CoinGecko and seed the order book
+- Start the ticker background task (24h stats refresh)
+
+You should see: INFO excentra: Server listening port=3000
+
+---
+
+### 5. Try it out
+
+**Register:**
+```bash
+curl -X POST http://localhost:3000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email": "trader@example.com", "password": "password123"}'
+```
+
+**Login:**
+```bash
+curl -X POST http://localhost:3000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "trader@example.com", "password": "password123"}'
+```
+
+**Deposit funds:**
+```bash
+curl -X POST http://localhost:3000/api/v1/balances/deposit \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"asset": "USDT", "amount": "10000"}'
+```
+
+**Place a limit order:**
+```bash
+curl -X POST http://localhost:3000/api/v1/orders \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"pair": "BTC/USDT", "side": "buy", "order_type": "limit", "price": "80000", "quantity": "0.1"}'
+```
+
+**View the order book:**
+```bash
+curl http://localhost:3000/api/v1/orderbook/BTC/USDT
+```
+
+**WebSocket (Postman or wscat):**
+```bash
+wscat -c ws://localhost:3000/ws
+# Then send:
+{"type": "subscribe", "channel": "orderbook:BTC/USDT"}
+```
+
+---
+
 ## Architecture
 
 ```
@@ -130,9 +244,9 @@ Holding a `MutexGuard` across an `.await` is a deadlock risk in async Rust. Guar
 | 5 | REST API | ✅ Complete |
 | 6 | WebSocket streaming | ✅ Complete |
 | 7 | Ticker service + CoinGecko price seeding | ✅ Complete |
-| 8 | Observability (tracing, metrics) | 🔄 In Progress |
+| 8 | Observability (tracing, metrics) | ✅ Complete |
 | 9 | Ethereum Sepolia testnet integration | 📋 Planned |
-| 10 | Frontend (React / Next.js) | 📋 Planned |
+| 10 | Frontend (React / Next.js) | 🔄 In Progress |
 | 11 | Deployment (Docker, VPS, CI/CD) | 📋 Planned |
 
 ### Blockchain Integration (Phase 9)
