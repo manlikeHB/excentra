@@ -1,5 +1,5 @@
 use rust_decimal::Decimal;
-use std::sync::Arc;
+use std::sync::{Arc, atomic::AtomicU64};
 use tokio::sync::{Mutex, broadcast};
 
 use sqlx::PgPool;
@@ -29,10 +29,13 @@ use crate::db::{
     queries::{self as db_queries},
 };
 
+use std::sync::atomic::Ordering;
+
 pub struct OrderService {
     pool: PgPool,
     exchange: Arc<Mutex<Exchange>>,
     ws_sender: broadcast::Sender<WsEvent>,
+    orders_processed: Arc<AtomicU64>,
 }
 
 impl OrderService {
@@ -40,12 +43,18 @@ impl OrderService {
         pool: PgPool,
         exchange: Arc<Mutex<Exchange>>,
         ws_sender: broadcast::Sender<WsEvent>,
+        orders_processed: Arc<AtomicU64>,
     ) -> Self {
         OrderService {
             pool,
             exchange,
             ws_sender,
+            orders_processed,
         }
+    }
+
+    pub fn orders_processed(&self) -> u64 {
+        self.orders_processed.load(Ordering::Relaxed)
     }
 
     pub async fn place_order(
@@ -98,6 +107,8 @@ impl OrderService {
                 // release held balance since order matching failed
                 db_queries::release(&self.pool, user_id, &asset, amount).await?;
 
+                tracing::info!(order_id = %order.id(), user_id = %user_id, amount_released = %amount, "Balance released");
+
                 return Err(e.into());
             }
         };
@@ -106,11 +117,15 @@ impl OrderService {
         let place_order_response = self
             .persist_order_and_trades(
                 order,
-                match_result,
+                &match_result,
                 asset_symbol,
                 quote_asset.decimals as u32,
             )
             .await?;
+
+        tracing::info!(order_id = %order.id(), user_id = %order.user_id(), pair = %order.pair_id(), side = ?order.side(), order_type = ?order.order_type(), quantity = %order.quantity(), trades_count = %match_result.trades().len(), "Order placed");
+
+        self.orders_processed.fetch_add(1, Ordering::Relaxed);
 
         Ok(place_order_response)
     }
@@ -204,6 +219,7 @@ impl OrderService {
                 } else {
                     // hold base asset
                     db_queries::hold(&self.pool, user_id, asset, amount).await?;
+                    tracing::info!(user_id = %user_id, amount_held = %amount, "Balance held");
                     Ok((asset.to_string(), amount))
                 }
             }
@@ -219,7 +235,7 @@ impl OrderService {
     async fn persist_order_and_trades(
         &self,
         order: Order,
-        match_result: MatchResult,
+        match_result: &MatchResult,
         symbol: AssetSymbol,
         quote_precision: u32,
     ) -> Result<PlaceOrderResponse, AppError> {
@@ -297,6 +313,8 @@ impl OrderService {
                 remaining_quantity: resting_order.remaining_quantity(),
             };
             let _ = self.ws_sender.send(ws_event);
+
+            tracing::info!(trade_id = %trade.id(), pair = %trade.pair_id(), price = %trade.price(), quantity = %trade.quantity(), "Trade executed");
         }
 
         // release unspent budget for a market buy order
@@ -306,6 +324,8 @@ impl OrderService {
                 if unspent > Decimal::ZERO {
                     db_queries::release(&mut *tx, order.user_id(), &symbol.quote_asset(), unspent)
                         .await?;
+
+                    tracing::info!(order_id = %order.id(), user_id = %order.user_id(), amount = %unspent, "Release unspent balance");
                 }
             }
             (_, _) => (),
@@ -357,6 +377,14 @@ impl OrderService {
             remaining_quantity,
             trades: final_trades,
         };
+
+        tracing::info!(
+            order_id = %order.id(),
+            status = ?order.status(),
+            remaining_quantity = %remaining_quantity,
+            trades_count = match_result.trades().len(),
+            "Order matching complete"
+        );
 
         Ok(place_order_response)
     }
@@ -449,6 +477,8 @@ impl OrderService {
             snapshot: snapshot,
         };
         let _ = self.ws_sender.send(ws_event);
+
+        tracing::info!(order_id = %order.id, user_id = %order.user_id, status = ?order.status, "order canceled");
 
         Ok(OrderResponse::new(order, &trading_pair.symbol))
     }

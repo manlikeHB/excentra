@@ -86,8 +86,13 @@ impl PriceSeedService {
 
             let price = if let Some(id) = coingecko_id {
                 match self.fetch_from_coingecko(id).await {
-                    Ok(p) => p,
+                    Ok(p) => {
+                        tracing::info!(pair = %pair.base_asset, price = %p, "Price fetched from CoinGecko");
+                        p
+                    }
                     Err(_) => {
+                        tracing::warn!(pair = %pair.base_asset, "CoinGecko fetch failed, using hardcoded fallback");
+
                         // hardcoded fallback
                         match pair.base_asset.as_str() {
                             "BTC" => dec!(65000),

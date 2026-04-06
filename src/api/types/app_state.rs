@@ -1,3 +1,8 @@
+use std::{
+    sync::{Arc, atomic::AtomicU64},
+    time::Instant,
+};
+
 use crate::{
     services::{
         assets::AssetService, orderbook::OrderBookService, orders::OrderService,
@@ -18,4 +23,6 @@ pub struct AppState {
     pub ws_sender: broadcast::Sender<WsEvent>,
     pub jwt_secret: String,
     pub ticker_service: TickerService,
+    pub ws_connections: Arc<AtomicU64>,
+    pub started_at: Instant,
 }

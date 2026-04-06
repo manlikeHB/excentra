@@ -44,6 +44,7 @@ pub async fn login_user(
     match verify_password(&body.password, &user.password_hash)? {
         true => (),
         false => {
+            tracing::warn!(email = %body.email, "Failed login attempt");
             return Err(AppError::Unauthorized(
                 "Invalid email or password".to_string(),
             ));

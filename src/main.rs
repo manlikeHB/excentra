@@ -39,12 +39,24 @@ use excentra::{
     config::Config,
 };
 use sqlx::PgPool;
-use std::sync::Arc;
+use std::{
+    sync::{Arc, atomic::AtomicU64},
+    time::Instant,
+};
 use tokio::sync::{Mutex, broadcast};
+use tower_http::trace::TraceLayer;
+use tracing_subscriber::{self, EnvFilter};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
+
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| EnvFilter::new("info,tower_http=debug")),
+        )
+        .init();
 
     // get config
     let config = Config::from_env();
@@ -54,6 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // load trading pairs and resting orders into exchange
     let pairs = db_queries::get_all_trading_pairs(&pool).await?;
+    let mut total_orders = 0;
     let mut exchange = Exchange::new();
 
     for pair in pairs {
@@ -61,19 +74,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let open_orders = db_queries::get_open_orders_by_pair(&pool, pair.id).await?;
         let order_book = exchange.get_order_book_mut(pair.id)?;
+        total_orders += open_orders.len();
 
         for order in open_orders {
             order_book.add_limit_order(order.into())?;
         }
     }
 
+    tracing::info!(order_count = total_orders, "Orders loaded into engine");
+
     let (tx, _) = broadcast::channel(1000);
+
+    let orders_processed = Arc::new(AtomicU64::new(0));
 
     // app state
     let exchange = Arc::new(Mutex::new(exchange));
     let shared_state = Arc::new(AppState {
         pool: pool.clone(),
-        order_service: OrderService::new(pool.clone(), exchange.clone(), tx.clone()),
+        order_service: OrderService::new(
+            pool.clone(),
+            exchange.clone(),
+            tx.clone(),
+            orders_processed,
+        ),
         trading_pair_service: TradingPairService::new(pool.clone(), exchange.clone()),
         trade_service: TradeService::new(pool.clone()),
         asset_service: AssetService::new(pool.clone()),
@@ -81,6 +104,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ws_sender: tx.clone(),
         jwt_secret: config.jwt_secret,
         ticker_service: TickerService::new(pool.clone(), tx.clone()),
+        ws_connections: Arc::new(AtomicU64::new(0)),
+        started_at: Instant::now(),
     });
 
     // Router & routes
@@ -122,7 +147,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest(&config.base_url, api_routes)
         .route("/health", get(health))
         .route("/ws", get(ws_handler))
-        .with_state(shared_state.clone());
+        .with_state(shared_state.clone())
+        .layer(TraceLayer::new_for_http());
 
     let ticker_state = shared_state.clone();
     tokio::spawn(async move {
@@ -135,7 +161,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     price_seed_service.seed_prices().await?;
 
     let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", config.port)).await?;
-    println!("Server listening on port {}", config.port);
+    tracing::info!(port = %config.port, "Server listening");
     axum::serve(listener, app).await?;
 
     Ok(())

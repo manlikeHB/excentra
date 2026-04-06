@@ -66,7 +66,7 @@ impl From<sqlx::Error> for AppError {
                 AppError::Conflict("Resource already exist".to_string())
             }
             _ => {
-                eprintln!("Database error: {:?}", e);
+                tracing::error!(error_msg = ?e, "Database error");
                 AppError::InternalError("Database error".to_string())
             }
         }

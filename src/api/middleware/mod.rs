@@ -60,7 +60,12 @@ fn extract_claims(parts: &mut Parts, jwt_secret: &str) -> Result<Claims, AuthRej
     // if it fails
     // - token expired or
     // - token is invalid, hence not logged in
-    Ok(verify_token(token, jwt_secret)?)
+    let claims = verify_token(token, jwt_secret).map_err(|_| {
+        tracing::warn!("Invalid or expired token presented");
+        AuthRejection::FailedToAuthorizeUser
+    })?;
+
+    Ok(claims)
 }
 
 impl IntoResponse for AuthRejection {

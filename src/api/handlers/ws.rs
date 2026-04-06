@@ -11,6 +11,7 @@ use futures_util::{
     SinkExt, StreamExt,
     stream::{SplitSink, SplitStream},
 };
+use std::sync::atomic::Ordering;
 use tokio::sync::{
     Mutex, broadcast,
     mpsc::{self},
@@ -33,6 +34,9 @@ pub async fn ws_handler(
 async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
     let (sender, receiver) = socket.split();
 
+    state.ws_connections.fetch_add(1, Ordering::Relaxed);
+    tracing::info!("WebSocket client connected");
+
     // subscription for THIS / CURRENT connection
     let subscriptions: Arc<Mutex<HashSet<String>>> = Arc::new(Mutex::new(HashSet::new()));
     // auth state
@@ -47,12 +51,11 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
     let subs_read = subscriptions.clone();
     let subs_write = subscriptions.clone();
     let user_id_read = user_id.clone();
-    // let user_id_write = user_id.clone();
 
-    let read_task =
-        tokio::spawn(
-            async move { read_task(receiver, subs_read, user_id_read, state, error_tx).await },
-        );
+    let read_state = state.clone();
+    let read_task = tokio::spawn(async move {
+        read_task(receiver, subs_read, user_id_read, read_state, error_tx).await
+    });
 
     let write_task =
         tokio::spawn(async move { write_task(sender, rx, subs_write, error_rx).await });
@@ -61,6 +64,9 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
      _ = read_task => {}
      _ = write_task => {}
     }
+
+    state.ws_connections.fetch_sub(1, Ordering::Relaxed);
+    tracing::info!("WebSocket client disconnected");
 }
 
 async fn read_task(
@@ -241,8 +247,7 @@ async fn write_task(
                         }
                     }
                     Err(broadcast::error::RecvError::Lagged(n)) => {
-                        // TODO: tracing::warn!
-                        eprintln!("WebSocket client lagged, missed {} events", n);
+                        tracing::warn!(missed_events = n, "WebSocket client lagged");
                     }
                     Err(broadcast::error::RecvError::Closed) => break,
                 }

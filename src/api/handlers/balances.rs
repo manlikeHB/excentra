@@ -21,16 +21,19 @@ pub async fn deposit(
     Json(body): Json<BalanceRequest>,
 ) -> Result<(StatusCode, Json<BalanceResponse>), AppError> {
     let user_id = auth.0.user_id();
+    let asset = &body.asset.to_uppercase();
 
     // verify asset is supported
-    if !db_queries::is_valid_asset(&state.pool, &body.asset).await? {
+    if !db_queries::is_valid_asset(&state.pool, asset).await? {
         return Err(AppError::BadRequest(format!(
             "{} is not supported",
             &body.asset
         )));
     }
 
-    let bal = db_queries::deposit(&state.pool, user_id, &body.asset, body.amount).await?;
+    let bal = db_queries::deposit(&state.pool, user_id, asset, body.amount).await?;
+
+    tracing::info!(user_id = %user_id, asset = %asset, amount = %body.amount, "Deposit credited");
 
     Ok((StatusCode::OK, Json(bal.into())))
 }
