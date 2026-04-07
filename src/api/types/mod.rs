@@ -9,3 +9,11 @@ pub mod trades;
 pub mod trading_pairs;
 
 pub use app_state::AppState;
+
+#[derive(Debug, serde::Serialize)]
+pub struct PaginatedResponse<T> {
+    pub data: Vec<T>,
+    pub page: u64,
+    pub limit: u64,
+    pub total: i64,
+}

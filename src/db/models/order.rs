@@ -89,3 +89,19 @@ impl From<OrderType> for DBOrderType {
         }
     }
 }
+
+#[derive(Debug, sqlx::FromRow)]
+pub struct OrderWithSymbol {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub pair_id: Uuid,
+    pub symbol: String,
+    pub side: DBOrderSide,
+    pub order_type: DBOrderType,
+    pub price: Option<Decimal>,
+    pub quantity: Decimal,
+    pub remaining_quantity: Decimal,
+    pub status: DBOrderStatus,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}

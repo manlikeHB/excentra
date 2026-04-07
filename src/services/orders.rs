@@ -2,16 +2,16 @@ use rust_decimal::Decimal;
 use std::sync::{Arc, atomic::AtomicU64};
 use tokio::sync::{Mutex, broadcast};
 
-use sqlx::PgPool;
+use sqlx::{PgPool, QueryBuilder};
 use uuid::Uuid;
 
 use crate::{
     api::types::order::{
-        OrderRequestValidationError, OrderResponse, PlaceOrderRequest, PlaceOrderResponse,
-        TradeInfo,
+        GetOrdersParams, OrderRequestValidationError, OrderResponse, PlaceOrderRequest,
+        PlaceOrderResponse, TradeInfo,
     },
     db::models::{
-        order::{DBOrder, DBOrderStatus},
+        order::{DBOrder, DBOrderStatus, OrderWithSymbol},
         trading_pairs::DBTradingPair,
     },
     engine::{
@@ -29,6 +29,7 @@ use crate::db::{
     queries::{self as db_queries},
 };
 
+use crate::constants;
 use std::sync::atomic::Ordering;
 
 pub struct OrderService {
@@ -497,4 +498,97 @@ impl OrderService {
 
         Ok((order, trading_pair.symbol))
     }
+
+    pub async fn get_orders(
+        &self,
+        user_id: Uuid,
+        params: &GetOrdersParams,
+    ) -> Result<(Vec<OrderWithSymbol>, i64), AppError> {
+        let mut order_builder = sqlx::QueryBuilder::new(
+            "SELECT o.*, tp.symbol
+                FROM orders o
+                JOIN trading_pairs tp ON o.pair_id = tp.id
+                WHERE o.user_id = ",
+        );
+        order_builder.push_bind(user_id);
+        apply_filters(&self.pool, &mut order_builder, &params.status, &params.pair).await?;
+        apply_pagination(&mut order_builder, params.page, params.limit).await?;
+
+        let mut count_builder = QueryBuilder::new(
+            "SELECT COUNT(*) FROM orders o
+                JOIN trading_pairs tp ON o.pair_id = tp.id
+                WHERE o.user_id = ",
+        );
+        count_builder.push_bind(user_id);
+        apply_filters(&self.pool, &mut count_builder, &params.status, &params.pair).await?;
+
+        let orders: Vec<OrderWithSymbol> =
+            order_builder.build_query_as().fetch_all(&self.pool).await?;
+        let count: i64 = count_builder
+            .build_query_scalar()
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok((orders, count))
+    }
+}
+
+async fn apply_filters<'q>(
+    pool: &PgPool,
+    builder: &mut QueryBuilder<'q, sqlx::Postgres>,
+    status: &Option<DBOrderStatus>,
+    pair: &Option<String>,
+) -> Result<(), AppError> {
+    if let Some(s) = status {
+        builder.push(" AND status = ");
+        builder.push_bind(s.clone());
+    }
+
+    if let Some(p) = pair {
+        let symbol = AssetSymbol::from_path(&p)?;
+        if let Some(pair_id) = db_queries::find_by_symbol(pool, symbol.as_str()).await? {
+            builder.push(" AND pair_id = ");
+            builder.push_bind(pair_id.id);
+        } else {
+            return Err(AppError::Unprocessable(format!(
+                "Invalid pair symbol: {}",
+                symbol.as_str()
+            )));
+        }
+    }
+
+    Ok(())
+}
+
+async fn apply_pagination<'q>(
+    builder: &mut QueryBuilder<'q, sqlx::Postgres>,
+    page: Option<u64>,
+    limit: Option<u64>,
+) -> Result<(), AppError> {
+    match (page, limit) {
+        (Some(p), Some(l)) => {
+            let offset = (p - 1) * l;
+            builder.push(" ORDER BY o.created_at DESC LIMIT ");
+            builder.push_bind(l as i64);
+            builder.push(" OFFSET ");
+            builder.push_bind(offset as i64);
+        }
+        (Some(p), None) => {
+            let offset = (p - 1) * constants::DEFAULT_PAGE_SIZE;
+            builder.push(" ORDER BY o.created_at DESC LIMIT ");
+            builder.push_bind(constants::DEFAULT_PAGE_SIZE as i64);
+            builder.push(" OFFSET ");
+            builder.push_bind(offset as i64);
+        }
+        (None, Some(l)) => {
+            builder.push(" ORDER BY o.created_at DESC LIMIT ");
+            builder.push_bind(l as i64);
+        }
+        (None, None) => {
+            builder.push(" ORDER BY o.created_at DESC LIMIT ");
+            builder.push_bind(constants::DEFAULT_PAGE_SIZE as i64);
+        }
+    }
+
+    Ok(())
 }

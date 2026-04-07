@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::{
     Json,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
 };
 use uuid::Uuid;
@@ -11,11 +11,11 @@ use crate::{
     api::{
         middleware::AuthUser,
         types::{
-            AppState,
-            order::{OrderResponse, PlaceOrderRequest, PlaceOrderResponse},
+            AppState, PaginatedResponse,
+            order::{GetOrdersParams, OrderResponse, PlaceOrderRequest, PlaceOrderResponse},
         },
     },
-    db::queries::{self as db_queries},
+    constants::DEFAULT_PAGE_SIZE,
     error::AppError,
 };
 
@@ -37,12 +37,23 @@ pub async fn place_order(
 pub async fn get_orders(
     auth: AuthUser,
     State(state): State<Arc<AppState>>,
-) -> Result<(StatusCode, Json<Vec<OrderResponse>>), AppError> {
+    Query(params): Query<GetOrdersParams>,
+) -> Result<(StatusCode, Json<PaginatedResponse<OrderResponse>>), AppError> {
     let user_id = auth.0.user_id();
 
-    let orders = db_queries::get_user_orders(&state.pool, user_id).await?;
+    let (orders, count) = state.order_service.get_orders(user_id, &params).await?;
 
-    Ok((StatusCode::OK, Json(orders)))
+    let orders = orders.into_iter().map(OrderResponse::from).collect();
+
+    Ok((
+        StatusCode::OK,
+        Json(PaginatedResponse {
+            data: orders,
+            page: params.page.unwrap_or(1),
+            limit: params.limit.unwrap_or(DEFAULT_PAGE_SIZE),
+            total: count,
+        }),
+    ))
 }
 
 pub async fn cancel_order(

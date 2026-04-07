@@ -1,9 +1,10 @@
 use crate::{
-    db::models::order::{DBOrder, DBOrderSide, DBOrderStatus, DBOrderType},
+    db::models::order::{DBOrder, DBOrderSide, DBOrderStatus, DBOrderType, OrderWithSymbol},
     error::AppError,
 };
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
+use serde::Deserialize;
 use uuid::Uuid;
 
 #[derive(Debug, serde::Deserialize)]
@@ -120,6 +121,50 @@ impl OrderResponse {
             created_at: order.created_at,
             updated_at: order.updated_at,
         }
+    }
+}
+
+impl From<OrderWithSymbol> for OrderResponse {
+    fn from(o: OrderWithSymbol) -> Self {
+        OrderResponse {
+            id: o.id,
+            symbol: o.symbol,
+            side: o.side,
+            order_type: o.order_type,
+            price: o.price,
+            quantity: o.quantity,
+            remaining_quantity: o.remaining_quantity,
+            status: o.status,
+            created_at: o.created_at,
+            updated_at: o.updated_at,
+        }
+    }
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct GetOrdersParams {
+    #[serde(default, deserialize_with = "deserialize_status")]
+    pub status: Option<DBOrderStatus>,
+    pub pair: Option<String>,
+    pub page: Option<u64>,
+    pub limit: Option<u64>,
+}
+
+pub fn deserialize_status<'de, D>(deserializer: D) -> Result<Option<DBOrderStatus>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = Option::<String>::deserialize(deserializer)?;
+    match s.as_deref().map(|s| s.to_lowercase()).as_deref() {
+        Some("open") => Ok(Some(DBOrderStatus::Open)),
+        Some("filled") => Ok(Some(DBOrderStatus::Filled)),
+        Some("cancelled") => Ok(Some(DBOrderStatus::Cancelled)),
+        Some("partially_filled") => Ok(Some(DBOrderStatus::PartiallyFilled)),
+        None => Ok(None),
+        Some(other) => Err(serde::de::Error::custom(format!(
+            "unknown status: {}",
+            other
+        ))),
     }
 }
 
