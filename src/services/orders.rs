@@ -505,14 +505,21 @@ impl OrderService {
         params: &GetOrdersParams,
     ) -> Result<(Vec<OrderWithSymbol>, i64), AppError> {
         let mut order_builder = sqlx::QueryBuilder::new(
-            "SELECT o.*, tp.symbol
+            "SELECT o.id, tp.symbol, o.side, o.user_id, o.pair_id, o.order_type, o.price, 
+                o.quantity, o.remaining_quantity, o.status, o.created_at, o.updated_at
                 FROM orders o
                 JOIN trading_pairs tp ON o.pair_id = tp.id
                 WHERE o.user_id = ",
         );
         order_builder.push_bind(user_id);
-        apply_filters(&self.pool, &mut order_builder, &params.status, &params.pair).await?;
-        apply_pagination(&mut order_builder, params.page, params.limit).await?;
+        apply_filters(
+            &self.pool,
+            &mut order_builder,
+            params.status,
+            params.pair.as_deref(),
+        )
+        .await?;
+        apply_pagination(&mut order_builder, params.page, params.limit);
 
         let mut count_builder = QueryBuilder::new(
             "SELECT COUNT(*) FROM orders o
@@ -520,7 +527,13 @@ impl OrderService {
                 WHERE o.user_id = ",
         );
         count_builder.push_bind(user_id);
-        apply_filters(&self.pool, &mut count_builder, &params.status, &params.pair).await?;
+        apply_filters(
+            &self.pool,
+            &mut count_builder,
+            params.status,
+            params.pair.as_deref(),
+        )
+        .await?;
 
         let orders: Vec<OrderWithSymbol> =
             order_builder.build_query_as().fetch_all(&self.pool).await?;
@@ -536,8 +549,8 @@ impl OrderService {
 async fn apply_filters<'q>(
     pool: &PgPool,
     builder: &mut QueryBuilder<'q, sqlx::Postgres>,
-    status: &Option<DBOrderStatus>,
-    pair: &Option<String>,
+    status: Option<DBOrderStatus>,
+    pair: Option<&str>,
 ) -> Result<(), AppError> {
     if let Some(s) = status {
         builder.push(" AND status = ");
@@ -560,11 +573,11 @@ async fn apply_filters<'q>(
     Ok(())
 }
 
-async fn apply_pagination<'q>(
+fn apply_pagination<'q>(
     builder: &mut QueryBuilder<'q, sqlx::Postgres>,
     page: Option<u64>,
     limit: Option<u64>,
-) -> Result<(), AppError> {
+) {
     match (page, limit) {
         (Some(p), Some(l)) => {
             let offset = (p - 1) * l;
@@ -589,6 +602,4 @@ async fn apply_pagination<'q>(
             builder.push_bind(constants::DEFAULT_PAGE_SIZE as i64);
         }
     }
-
-    Ok(())
 }
