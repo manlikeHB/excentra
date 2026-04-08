@@ -1,6 +1,4 @@
 use crate::api::types::auth::{LoginRequest, LoginResponse};
-use crate::auth::{create_token, hash_password, verify_password};
-use crate::db::queries as db_queries;
 use crate::{
     api::types::{
         AppState,
@@ -18,12 +16,12 @@ pub async fn register_user(
 ) -> Result<(StatusCode, Json<RegisterResponse>), AppError> {
     // validate email
     body.validate()?;
+    let user = state
+        .auth_service
+        .register_user(&body.email, &body.password)
+        .await?;
 
-    let password_hash = hash_password(&body.password)?;
-
-    let new_user = db_queries::create_user(&state.pool, &body.email, &password_hash).await?;
-
-    Ok((StatusCode::CREATED, Json(new_user.into())))
+    Ok((StatusCode::CREATED, Json(user.into())))
 }
 
 pub async fn login_user(
@@ -32,26 +30,10 @@ pub async fn login_user(
 ) -> Result<(StatusCode, Json<LoginResponse>), AppError> {
     body.validate()?;
 
-    let user = match db_queries::find_by_email(&state.pool, &body.email).await? {
-        Some(user) => user,
-        None => {
-            return Err(AppError::Unauthorized(
-                "Invalid email or password".to_string(),
-            ));
-        }
-    };
-
-    match verify_password(&body.password, &user.password_hash)? {
-        true => (),
-        false => {
-            tracing::warn!(email = %body.email, "Failed login attempt");
-            return Err(AppError::Unauthorized(
-                "Invalid email or password".to_string(),
-            ));
-        }
-    };
-
-    let token = create_token(user.id, user.role, &state.jwt_secret)?;
+    let token = state
+        .auth_service
+        .login(&body.email, &body.password)
+        .await?;
 
     Ok((StatusCode::OK, Json(LoginResponse { token })))
 }

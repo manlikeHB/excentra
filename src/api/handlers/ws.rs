@@ -18,9 +18,9 @@ use tokio::sync::{
 };
 use uuid::Uuid;
 
+use crate::services::auth::utils::verify_token;
 use crate::{
     api::types::AppState,
-    auth::verify_token,
     ws::messages::{Channel, InboundMessage, OutboundMessage, WsEvent},
 };
 
@@ -84,7 +84,7 @@ async fn read_task(
                 // handle various inbound message types
                 Ok(msg) => match msg {
                     InboundMessage::Auth { token } => {
-                        match verify_token(&token, &state.jwt_secret) {
+                        match verify_token(&token, &state.auth_service.jwt_secret) {
                             Ok(c) => {
                                 // add retrieved user id to user_id
                                 *user_id.lock().await = Some(c.user_id());

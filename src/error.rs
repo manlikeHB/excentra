@@ -63,7 +63,12 @@ impl From<sqlx::Error> for AppError {
     fn from(e: sqlx::Error) -> Self {
         match e {
             sqlx::Error::Database(db_err) if db_err.is_unique_violation() => {
-                AppError::Conflict("Resource already exist".to_string())
+                let msg = match db_err.constraint() {
+                    Some("users_username_key") => "Username already taken",
+                    Some("users_email_key") => "Email already registered",
+                    _ => "Resource already exists",
+                };
+                AppError::Conflict(msg.to_string())
             }
             _ => {
                 tracing::error!(error_msg = ?e, "Database error");

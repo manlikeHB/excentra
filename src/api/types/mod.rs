@@ -7,6 +7,7 @@ pub mod order;
 pub mod orderbook;
 pub mod trades;
 pub mod trading_pairs;
+pub mod users;
 
 pub use app_state::AppState;
 

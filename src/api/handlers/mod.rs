@@ -7,4 +7,5 @@ pub mod orders;
 pub mod ticker;
 pub mod trades;
 pub mod trading_pairs;
+pub mod users;
 pub mod ws;

@@ -10,12 +10,13 @@ use excentra::{
         orders::get_order_by_id,
         ticker::get_ticker,
         trading_pairs::{get_active_trading_pairs, get_all_trading_pairs},
+        users::{get_user, update_user},
         ws::ws_handler,
     },
     db::queries as db_queries,
     services::{
-        assets::AssetService, orderbook::OrderBookService, price_seed::PriceSeedService,
-        ticker::TickerService,
+        assets::AssetService, auth::AuthService, orderbook::OrderBookService,
+        price_seed::PriceSeedService, ticker::TickerService, users::UserService,
     },
 };
 use excentra::{
@@ -102,10 +103,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         asset_service: AssetService::new(pool.clone()),
         order_book_service: OrderBookService::new(exchange.clone()),
         ws_sender: tx.clone(),
-        jwt_secret: config.jwt_secret,
         ticker_service: TickerService::new(pool.clone(), tx.clone()),
         ws_connections: Arc::new(AtomicU64::new(0)),
         started_at: Instant::now(),
+        auth_service: AuthService::new(pool.clone(), config.jwt_secret),
+        user_service: UserService::new(pool.clone()),
     });
 
     // Router & routes
@@ -133,6 +135,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let ticker_router = Router::new().route("/{symbol}", get(get_ticker));
 
+    let user_router = Router::new().route("/me", get(get_user).patch(update_user));
+
     let api_routes = Router::new()
         .nest("/auth", auth_router)
         .nest("/orders", order_router)
@@ -141,7 +145,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/trades", trades_router)
         .nest("/assets", asset_router)
         .nest("/orderbook", orderbook_router)
-        .nest("/ticker", ticker_router);
+        .nest("/ticker", ticker_router)
+        .nest("/users", user_router);
 
     let app = Router::new()
         .nest(&config.base_url, api_routes)

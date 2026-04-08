@@ -1,28 +1,9 @@
 use crate::db::models::user::UserRole;
+use crate::services::auth::Claims;
 use jsonwebtoken::{
     Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode, errors::Error,
 };
 use uuid::Uuid;
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct Claims {
-    user_id: Uuid,
-    role: UserRole,
-    exp: i64,
-}
-
-impl Claims {
-    pub fn user_id(&self) -> Uuid {
-        self.user_id
-    }
-
-    pub fn role(&self) -> UserRole {
-        self.role
-    }
-    pub fn exp(&self) -> i64 {
-        self.exp
-    }
-}
 
 pub fn hash_password(password: &str) -> Result<String, bcrypt::BcryptError> {
     bcrypt::hash(password, bcrypt::DEFAULT_COST)
@@ -33,12 +14,11 @@ pub fn verify_password(password: &str, hash: &str) -> Result<bool, bcrypt::Bcryp
 }
 
 pub fn create_token(user_id: Uuid, role: UserRole, secret: &str) -> Result<String, Error> {
-    let claims = Claims {
+    let claims = Claims::new(
         user_id,
         role,
-        //TODO: reduce exp when in production
-        exp: (chrono::Utc::now() + chrono::Duration::days(7)).timestamp(),
-    };
+        (chrono::Utc::now() + chrono::Duration::days(7)).timestamp(),
+    );
 
     encode(
         &Header::default(),
@@ -76,6 +56,6 @@ mod test {
         let user_id = Uuid::new_v4();
         let token = create_token(user_id, UserRole::User, jwt_secret).unwrap();
         let claims = verify_token(&token, jwt_secret).unwrap();
-        assert_eq!(claims.user_id, user_id);
+        assert_eq!(claims.user_id(), user_id);
     }
 }

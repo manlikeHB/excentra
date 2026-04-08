@@ -5,8 +5,9 @@ use std::{
 
 use crate::{
     services::{
-        assets::AssetService, orderbook::OrderBookService, orders::OrderService,
+        assets::AssetService, auth::AuthService, orderbook::OrderBookService, orders::OrderService,
         ticker::TickerService, trades::TradeService, trading_pair::TradingPairService,
+        users::UserService,
     },
     ws::messages::WsEvent,
 };
@@ -21,8 +22,9 @@ pub struct AppState {
     pub asset_service: AssetService,
     pub order_book_service: OrderBookService,
     pub ws_sender: broadcast::Sender<WsEvent>,
-    pub jwt_secret: String,
     pub ticker_service: TickerService,
     pub ws_connections: Arc<AtomicU64>,
     pub started_at: Instant,
+    pub auth_service: AuthService,
+    pub user_service: UserService,
 }

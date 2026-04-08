@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use crate::{
     api::types::AppState,
-    auth::{Claims, verify_token},
     db::models::user::UserRole,
+    services::auth::{Claims, utils::verify_token},
 };
 use axum::http::request::Parts;
 use axum::response::IntoResponse;
@@ -19,7 +19,7 @@ impl FromRequestParts<Arc<AppState>> for AuthUser {
         parts: &mut Parts,
         state: &Arc<AppState>,
     ) -> Result<Self, Self::Rejection> {
-        let claims = extract_claims(parts, &state.jwt_secret)?;
+        let claims = extract_claims(parts, &state.auth_service.jwt_secret)?;
         Ok(AuthUser(claims))
     }
 }
@@ -31,7 +31,7 @@ impl FromRequestParts<Arc<AppState>> for AdminUser {
         parts: &mut Parts,
         state: &Arc<AppState>,
     ) -> Result<Self, Self::Rejection> {
-        let claims = extract_claims(parts, &state.jwt_secret)?;
+        let claims = extract_claims(parts, &state.auth_service.jwt_secret)?;
 
         // verify it's admin
         if claims.role() != UserRole::Admin {
