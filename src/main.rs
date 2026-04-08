@@ -4,40 +4,30 @@ use axum::{
 };
 use dotenvy::dotenv;
 use excentra::{
-    api::handlers::{
-        asset::{add_asset, get_all_assets},
-        orderbook::get_orderbook,
-        orders::get_order_by_id,
-        ticker::get_ticker,
-        trading_pairs::{get_active_trading_pairs, get_all_trading_pairs},
-        users::{get_user, update_user},
-        ws::ws_handler,
-    },
-    db::queries as db_queries,
-    services::{
-        assets::AssetService, auth::AuthService, orderbook::OrderBookService,
-        price_seed::PriceSeedService, ticker::TickerService, users::UserService,
-    },
-};
-use excentra::{
-    api::handlers::{
-        auth::{login_user, register_user},
-        balances::{deposit, get_balances},
-        health::health,
-    },
-    services::orders::OrderService,
-};
-use excentra::{
-    api::handlers::{trades::get_recent_trades, trading_pairs::add_trading_pair},
-    engine::exchange::Exchange,
-    services::{trades::TradeService, trading_pair::TradingPairService},
-};
-use excentra::{
     api::{
-        handlers::orders::{cancel_order, get_orders, place_order},
+        handlers::{
+            asset::{add_asset, get_all_assets},
+            auth::{login_user, register_user},
+            balances::{deposit, get_balances},
+            health::health,
+            orderbook::get_orderbook,
+            orders::{cancel_order, get_order_by_id, get_orders, place_order},
+            ticker::get_ticker,
+            trades::{get_recent_trades_for_a_pair, get_trade_history},
+            trading_pairs::{add_trading_pair, get_active_trading_pairs, get_all_trading_pairs},
+            users::{get_user, update_user},
+            ws::ws_handler,
+        },
         types::AppState,
     },
     config::Config,
+    db::queries as db_queries,
+    engine::exchange::Exchange,
+    services::{
+        assets::AssetService, auth::AuthService, orderbook::OrderBookService, orders::OrderService,
+        price_seed::PriceSeedService, ticker::TickerService, trades::TradeService,
+        trading_pair::TradingPairService, users::UserService,
+    },
 };
 use sqlx::PgPool;
 use std::{
@@ -127,7 +117,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/", get(get_active_trading_pairs).post(add_trading_pair))
         .route("/all", get(get_all_trading_pairs));
 
-    let trades_router = Router::new().route("/{symbol}", get(get_recent_trades));
+    let trades_router = Router::new()
+        .route("/{symbol}", get(get_recent_trades_for_a_pair))
+        .route("/me", get(get_trade_history));
 
     let asset_router = Router::new().route("/", post(add_asset).get(get_all_assets));
 

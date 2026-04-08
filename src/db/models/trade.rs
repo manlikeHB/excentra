@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
-use crate::engine::models::trade::Trade;
+use crate::{db::models::order::DBOrderSide, engine::models::trade::Trade};
 
 #[derive(Debug, Clone, Copy, sqlx::FromRow)]
 pub struct DBTrade {
@@ -41,4 +41,14 @@ pub struct TradeStat {
 
 pub struct LastPrice {
     pub price: Decimal,
+}
+
+#[derive(Debug, sqlx::FromRow)]
+pub struct TradeWithSymbolAndSide {
+    pub id: Uuid,
+    pub symbol: String,
+    pub side: DBOrderSide,
+    pub price: Decimal,
+    pub quantity: Decimal,
+    pub created_at: DateTime<Utc>,
 }

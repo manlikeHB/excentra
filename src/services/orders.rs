@@ -21,6 +21,7 @@ use crate::{
     },
     error::AppError,
     types::asset_symbol::AssetSymbol,
+    utils::query_builder,
     ws::messages::WsEvent,
 };
 
@@ -28,8 +29,6 @@ use crate::db::{
     models::order::{DBOrderSide, DBOrderType},
     queries::{self as db_queries},
 };
-
-use super::utils::{apply_filters, apply_pagination};
 use std::sync::atomic::Ordering;
 
 pub struct OrderService {
@@ -536,6 +535,7 @@ impl OrderService {
         user_id: Uuid,
         params: &GetOrdersParams,
     ) -> Result<(Vec<OrderWithSymbol>, i64), AppError> {
+        // build order query
         let mut order_builder = sqlx::QueryBuilder::new(
             "SELECT o.id, tp.symbol, o.side, o.user_id, o.pair_id, o.order_type, o.price, 
                 o.quantity, o.remaining_quantity, o.status, o.created_at, o.updated_at
@@ -544,29 +544,33 @@ impl OrderService {
                 WHERE o.user_id = ",
         );
         order_builder.push_bind(user_id);
-        apply_filters(
+        query_builder::apply_status_filter(&mut order_builder, params.status);
+        query_builder::apply_pair_filter(
             &self.pool,
             &mut order_builder,
-            params.status,
             params.pair.as_deref(),
+            "o",
         )
         .await?;
-        apply_pagination(&mut order_builder, params.page, params.limit);
+        query_builder::apply_pagination(&mut order_builder, params.page, params.limit, "o");
 
+        // build count order query
         let mut count_builder = QueryBuilder::new(
             "SELECT COUNT(*) FROM orders o
                 JOIN trading_pairs tp ON o.pair_id = tp.id
                 WHERE o.user_id = ",
         );
         count_builder.push_bind(user_id);
-        apply_filters(
+        query_builder::apply_status_filter(&mut count_builder, params.status);
+        query_builder::apply_pair_filter(
             &self.pool,
             &mut count_builder,
-            params.status,
             params.pair.as_deref(),
+            "o",
         )
         .await?;
 
+        // execute queries
         let orders: Vec<OrderWithSymbol> =
             order_builder.build_query_as().fetch_all(&self.pool).await?;
         let count: i64 = count_builder
