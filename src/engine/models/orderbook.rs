@@ -189,7 +189,7 @@ impl OrderBook {
             }
         };
 
-        for book_price in prices {
+        'outer: for book_price in prices {
             let should_match = match incoming_price {
                 Some(p) => {
                     match order.side() {
@@ -209,6 +209,12 @@ impl OrderBook {
                             Some(o) => o,
                             None => break,
                         };
+
+                        // prevent wash trading
+                        if order.user_id() == book_order.user_id() {
+                            break 'outer;
+                        }
+
                         let traded_quantity = book_order
                             .remaining_quantity()
                             .min(order.remaining_quantity());
@@ -295,6 +301,11 @@ impl OrderBook {
 
         'outer: for (ask_price, side) in self.asks.iter_mut() {
             while let Some(resting_order) = side.front_mut() {
+                // prevent wash trading
+                if order.user_id() == resting_order.user_id() {
+                    break 'outer;
+                }
+
                 let cost_of_full_fill = resting_order.remaining_quantity() * ask_price;
 
                 if budget >= cost_of_full_fill {

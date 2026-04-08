@@ -168,3 +168,52 @@ pub async fn get_open_orders_by_user(
     .fetch_all(pool)
     .await
 }
+
+pub async fn has_crossing_order(
+    pool: &PgPool,
+    user_id: Uuid,
+    pair_id: Uuid,
+    side: &DBOrderSide,
+    price: Decimal,
+) -> Result<bool, sqlx::Error> {
+    match side {
+        // incoming buy — check if user has resting sells at price <= incoming price
+        DBOrderSide::Buy => {
+            let result = sqlx::query!(
+                r#"SELECT id FROM orders
+                WHERE user_id = $1
+                AND pair_id = $2
+                AND side = 'sell'
+                AND status IN ('open', 'partially_filled')
+                AND price <= $3
+                LIMIT 1"#,
+                user_id,
+                pair_id,
+                price
+            )
+            .fetch_optional(pool)
+            .await?;
+
+            Ok(result.is_some())
+        }
+        // incoming sell — check if user has resting buys at price >= incoming price
+        DBOrderSide::Sell => {
+            let result = sqlx::query!(
+                r#"SELECT id FROM orders
+                WHERE user_id = $1
+                AND pair_id = $2
+                AND side = 'buy'
+                AND status IN ('open', 'partially_filled')
+                AND price >= $3
+                LIMIT 1"#,
+                user_id,
+                pair_id,
+                price
+            )
+            .fetch_optional(pool)
+            .await?;
+
+            Ok(result.is_some())
+        }
+    }
+}

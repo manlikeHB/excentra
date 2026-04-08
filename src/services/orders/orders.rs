@@ -29,7 +29,7 @@ use crate::db::{
     queries::{self as db_queries},
 };
 
-use crate::constants;
+use super::utils::{apply_filters, apply_pagination};
 use std::sync::atomic::Ordering;
 
 pub struct OrderService {
@@ -66,6 +66,38 @@ impl OrderService {
         let asset_symbol = AssetSymbol::new(&body.symbol)?;
         // get trading pair
         let trading_pair = self.get_trading_pair(asset_symbol.as_str()).await?;
+
+        // Self-Trade Prevention (STP): reject incoming limit orders that would cross
+        // the user's own resting orders. Market orders are exempt — a user may
+        // intentionally hold a resting limit order while placing a market order
+        // for a different purpose. For market orders, wash trading is mitigated
+        // at the engine level via break 'outer in the matching loop.
+        if body.order_type == DBOrderType::Limit {
+            let price = match body.price {
+                Some(p) => p,
+                None => {
+                    return Err(AppError::BadRequest(
+                        "A limit order should have a price".to_string(),
+                    ));
+                }
+            };
+
+            let has_crossing = db_queries::has_crossing_order(
+                &self.pool,
+                user_id,
+                trading_pair.id,
+                &body.side,
+                price,
+            )
+            .await?;
+
+            if has_crossing {
+                return Err(AppError::BadRequest(
+                    "Order would match against your own resting order".to_string(),
+                ));
+            }
+        }
+
         // get quote asset
         let quote_asset =
             match db_queries::find_asset_by_symbol(&self.pool, asset_symbol.quote_asset()).await? {
@@ -545,63 +577,5 @@ impl OrderService {
         tracing::info!(user_id = %user_id, total = count, "Orders fetched");
 
         Ok((orders, count))
-    }
-}
-
-async fn apply_filters<'q>(
-    pool: &PgPool,
-    builder: &mut QueryBuilder<'q, sqlx::Postgres>,
-    status: Option<DBOrderStatus>,
-    pair: Option<&str>,
-) -> Result<(), AppError> {
-    if let Some(s) = status {
-        builder.push(" AND status = ");
-        builder.push_bind(s.clone());
-    }
-
-    if let Some(p) = pair {
-        let symbol = AssetSymbol::from_path(&p)?;
-        if let Some(pair_id) = db_queries::find_by_symbol(pool, symbol.as_str()).await? {
-            builder.push(" AND pair_id = ");
-            builder.push_bind(pair_id.id);
-        } else {
-            return Err(AppError::Unprocessable(format!(
-                "Invalid pair symbol: {}",
-                symbol.as_str()
-            )));
-        }
-    }
-
-    Ok(())
-}
-
-fn apply_pagination<'q>(
-    builder: &mut QueryBuilder<'q, sqlx::Postgres>,
-    page: Option<u64>,
-    limit: Option<u64>,
-) {
-    match (page, limit) {
-        (Some(p), Some(l)) => {
-            let offset = (p - 1) * l;
-            builder.push(" ORDER BY o.created_at DESC LIMIT ");
-            builder.push_bind(l as i64);
-            builder.push(" OFFSET ");
-            builder.push_bind(offset as i64);
-        }
-        (Some(p), None) => {
-            let offset = (p - 1) * constants::DEFAULT_PAGE_SIZE;
-            builder.push(" ORDER BY o.created_at DESC LIMIT ");
-            builder.push_bind(constants::DEFAULT_PAGE_SIZE as i64);
-            builder.push(" OFFSET ");
-            builder.push_bind(offset as i64);
-        }
-        (None, Some(l)) => {
-            builder.push(" ORDER BY o.created_at DESC LIMIT ");
-            builder.push_bind(l as i64);
-        }
-        (None, None) => {
-            builder.push(" ORDER BY o.created_at DESC LIMIT ");
-            builder.push_bind(constants::DEFAULT_PAGE_SIZE as i64);
-        }
     }
 }
