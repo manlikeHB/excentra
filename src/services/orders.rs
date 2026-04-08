@@ -542,6 +542,8 @@ impl OrderService {
             .fetch_one(&self.pool)
             .await?;
 
+        tracing::info!(user_id = %user_id, total = count, "Orders fetched");
+
         Ok((orders, count))
     }
 }

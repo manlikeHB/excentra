@@ -25,6 +25,8 @@ impl UserService {
             }
         };
 
+        tracing::info!(user_id = %user_id, "User profile fetched");
+
         Ok(user)
     }
 
@@ -48,6 +50,8 @@ impl UserService {
             match verify_password(p, &user.password_hash)? {
                 true => (),
                 false => {
+                    tracing::warn!(user_id = %user_id, "Failed password verification on profile update");
+
                     return Err(AppError::Unauthorized(
                         "Current password is incorrect".to_string(),
                     ));
@@ -55,26 +59,26 @@ impl UserService {
             };
         }
 
-        match (username, new_password) {
+        let user = match (username, new_password) {
             (Some(n), Some(p)) => {
                 let hash = hash_password(p)?;
                 match db_queries::update_username_and_password(&self.pool, user_id, n, &hash)
                     .await?
                 {
-                    Some(user) => Ok(user),
+                    Some(user) => user,
                     None => {
                         return Err(AppError::InternalError("Failed to update user".to_string()));
                     }
                 }
             }
             (Some(n), None) => match db_queries::update_username(&self.pool, user_id, n).await? {
-                Some(user) => Ok(user),
+                Some(user) => user,
                 None => return Err(AppError::InternalError("Failed to update user".to_string())),
             },
             (None, Some(p)) => {
                 let hash = hash_password(p)?;
                 match db_queries::update_password(&self.pool, user_id, &hash).await? {
-                    Some(user) => Ok(user),
+                    Some(user) => user,
                     None => {
                         return Err(AppError::InternalError("Failed to update user".to_string()));
                     }
@@ -83,6 +87,10 @@ impl UserService {
             (None, None) => {
                 return Err(AppError::BadRequest("No fields to update".to_string()));
             }
-        }
+        };
+
+        tracing::info!(user_id = %user_id, "User profile updated");
+
+        Ok(user)
     }
 }
