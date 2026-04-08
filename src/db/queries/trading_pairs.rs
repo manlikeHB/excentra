@@ -9,7 +9,7 @@ pub async fn find_by_symbol(
 ) -> Result<Option<DBTradingPair>, sqlx::Error> {
     sqlx::query_as!(
         DBTradingPair,
-        r#"SELECT * FROM trading_pairs WHERE symbol = $1"#,
+        r#"SELECT * FROM trading_pairs WHERE symbol = $1 AND is_active = true"#,
         symbol
     )
     .fetch_optional(pool)
@@ -39,6 +39,17 @@ pub async fn get_active_trading_pairs(pool: &PgPool) -> Result<Vec<DBTradingPair
     sqlx::query_as!(
         DBTradingPair,
         r#"SELECT * FROM trading_pairs WHERE is_active = true"#
+    )
+    .fetch_all(pool)
+    .await
+}
+
+pub async fn get_non_active_trading_pairs(
+    pool: &PgPool,
+) -> Result<Vec<DBTradingPair>, sqlx::Error> {
+    sqlx::query_as!(
+        DBTradingPair,
+        r#"SELECT * FROM trading_pairs WHERE is_active = false"#
     )
     .fetch_all(pool)
     .await

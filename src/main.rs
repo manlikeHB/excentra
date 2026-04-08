@@ -12,9 +12,11 @@ use excentra::{
             health::health,
             orderbook::get_orderbook,
             orders::{cancel_order, get_order_by_id, get_orders, place_order},
-            ticker::get_ticker,
+            ticker::{get_all_tickers, get_ticker},
             trades::{get_recent_trades_for_a_pair, get_trade_history},
-            trading_pairs::{add_trading_pair, get_active_trading_pairs, get_all_trading_pairs},
+            trading_pairs::{
+                add_trading_pair, get_active_trading_pairs, get_all_trading_pairs, get_trading_pair,
+            },
             users::{get_user, update_user},
             ws::ws_handler,
         },
@@ -56,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pool = PgPool::connect(&config.database_url).await?;
 
     // load trading pairs and resting orders into exchange
-    let pairs = db_queries::get_all_trading_pairs(&pool).await?;
+    let pairs = db_queries::get_active_trading_pairs(&pool).await?;
     let mut total_orders = 0;
     let mut exchange = Exchange::new();
 
@@ -114,8 +116,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/", get(get_balances));
 
     let pair_router = Router::new()
-        .route("/", get(get_active_trading_pairs).post(add_trading_pair))
-        .route("/all", get(get_all_trading_pairs));
+        .route("/", get(get_all_trading_pairs).post(add_trading_pair))
+        .route("/active", get(get_active_trading_pairs))
+        .route("/{symbol}", get(get_trading_pair));
 
     let trades_router = Router::new()
         .route("/{symbol}", get(get_recent_trades_for_a_pair))
@@ -125,7 +128,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let orderbook_router = Router::new().route("/{symbol}", get(get_orderbook));
 
-    let ticker_router = Router::new().route("/{symbol}", get(get_ticker));
+    let ticker_router = Router::new()
+        .route("/{symbol}", get(get_ticker))
+        .route("/", get(get_all_tickers));
 
     let user_router = Router::new().route("/me", get(get_user).patch(update_user));
 

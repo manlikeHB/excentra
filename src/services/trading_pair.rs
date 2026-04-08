@@ -30,12 +30,35 @@ impl TradingPairService {
         Ok(res)
     }
 
-    pub async fn get_all_trading_pairs(&self) -> Result<Vec<TradingPairsResponse>, AppError> {
-        let res = db_queries::get_all_trading_pairs(&self.pool)
-            .await?
-            .into_iter()
-            .map(TradingPairsResponse::from)
-            .collect();
+    pub async fn get_all_trading_pairs(
+        &self,
+        active: Option<bool>,
+    ) -> Result<Vec<TradingPairsResponse>, AppError> {
+        let pairs = match active {
+            Some(a) => match a {
+                true => db_queries::get_active_trading_pairs(&self.pool).await?,
+                false => db_queries::get_non_active_trading_pairs(&self.pool).await?,
+            },
+            None => db_queries::get_all_trading_pairs(&self.pool).await?,
+        };
+
+        let res = pairs.into_iter().map(TradingPairsResponse::from).collect();
+
+        Ok(res)
+    }
+
+    pub async fn get_trading_pair(&self, symbol: &str) -> Result<DBTradingPair, AppError> {
+        let symbol = AssetSymbol::from_path(symbol)?;
+        let res = match db_queries::find_by_symbol(&self.pool, symbol.as_str()).await? {
+            Some(tp) => tp,
+            None => {
+                tracing::warn!(symbol = %symbol.as_str(), "Trading pair not found or inactive");
+                return Err(AppError::NotFound(format!(
+                    "Trading pair not found: {}",
+                    symbol.as_str()
+                )));
+            }
+        };
 
         Ok(res)
     }

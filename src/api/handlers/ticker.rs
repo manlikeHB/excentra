@@ -7,7 +7,9 @@ use axum::{
 use reqwest::StatusCode;
 
 use crate::{
-    api::types::AppState, error::AppError, services::ticker::Ticker,
+    api::types::AppState,
+    error::AppError,
+    services::ticker::{Ticker, TickerWithSymbol},
     types::asset_symbol::AssetSymbol,
 };
 
@@ -19,4 +21,11 @@ pub async fn get_ticker(
     let ticker = state.ticker_service.get_pair_ticker_stats(symbol).await?;
 
     Ok((StatusCode::OK, Json(ticker)))
+}
+
+pub async fn get_all_tickers(
+    State(state): State<Arc<AppState>>,
+) -> Result<(StatusCode, Json<Vec<TickerWithSymbol>>), AppError> {
+    let tickers = state.ticker_service.get_all_tickers().await?;
+    Ok((StatusCode::OK, Json(tickers)))
 }

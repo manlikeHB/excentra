@@ -31,3 +31,8 @@ pub struct AddTradingPairRequest {
     pub base_asset: String,
     pub quote_asset: String,
 }
+
+#[derive(Debug, serde::Deserialize)]
+pub struct GetPairParams {
+    pub active: Option<bool>,
+}

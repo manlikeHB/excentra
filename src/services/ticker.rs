@@ -40,6 +40,13 @@ impl Ticker {
     }
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct TickerWithSymbol {
+    symbol: String,
+    #[serde(flatten)]
+    ticker: Ticker,
+}
+
 impl TickerService {
     pub fn new(pool: PgPool, ws_sender: broadcast::Sender<WsEvent>) -> Self {
         TickerService { pool, ws_sender }
@@ -98,7 +105,30 @@ impl TickerService {
         Ok(ticker)
     }
 
-    pub fn get_ticker(stat: TradeStat) -> Option<Ticker> {
+    // TODO: refactor to use single aggregated SQL query instead of N+1 DB queries
+    pub async fn get_all_tickers(&self) -> Result<Vec<TickerWithSymbol>, AppError> {
+        let tps = db_queries::get_active_trading_pairs(&self.pool).await?;
+        let mut trade_stats = vec![];
+
+        for tp in tps {
+            let trade_stat = db_queries::get_trade_stats(&self.pool, tp.id).await?;
+
+            match Self::get_ticker(trade_stat) {
+                Some(t) => trade_stats.push(TickerWithSymbol {
+                    symbol: tp.symbol,
+                    ticker: t,
+                }),
+                None => {
+                    tracing::warn!(symbol = %tp.symbol, "No trades found for");
+                }
+            };
+        }
+
+        tracing::info!(count = %trade_stats.len(), "Tickers fetched");
+        Ok(trade_stats)
+    }
+
+    fn get_ticker(stat: TradeStat) -> Option<Ticker> {
         // if any of these are None, there are no trades — return None
         let (Some(high_24h), Some(low_24h), Some(volume_24h), Some(last_price)) = (
             stat.high_24h,
