@@ -27,4 +27,5 @@ pub struct AppState {
     pub started_at: Instant,
     pub auth_service: AuthService,
     pub user_service: UserService,
+    pub base_url: String,
 }

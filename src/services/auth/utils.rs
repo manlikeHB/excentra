@@ -3,6 +3,8 @@ use crate::services::auth::Claims;
 use jsonwebtoken::{
     Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode, errors::Error,
 };
+use rand::RngExt;
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 pub fn hash_password(password: &str) -> Result<String, bcrypt::BcryptError> {
@@ -17,7 +19,7 @@ pub fn create_token(user_id: Uuid, role: UserRole, secret: &str) -> Result<Strin
     let claims = Claims::new(
         user_id,
         role,
-        (chrono::Utc::now() + chrono::Duration::days(7)).timestamp(),
+        (chrono::Utc::now() + chrono::Duration::minutes(15)).timestamp(),
     );
 
     encode(
@@ -35,6 +37,18 @@ pub fn verify_token(token: &str, secret: &str) -> Result<Claims, Error> {
     )?
     .claims;
     Ok(claims)
+}
+
+pub fn generate_refresh_token() -> String {
+    let mut rng = rand::rng();
+    let token: Vec<u8> = (0..64).map(|_| rng.random::<u8>()).collect();
+    hex::encode(token)
+}
+
+pub fn hash_refresh_token(token: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(token.as_bytes());
+    hex::encode(hasher.finalize())
 }
 
 #[cfg(test)]

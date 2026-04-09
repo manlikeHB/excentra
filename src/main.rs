@@ -7,7 +7,7 @@ use excentra::{
     api::{
         handlers::{
             asset::{add_asset, get_all_assets},
-            auth::{login_user, register_user},
+            auth::{login_user, logout, refresh_token, register_user},
             balances::{deposit, get_balances},
             health::health,
             orderbook::get_orderbook,
@@ -100,12 +100,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         started_at: Instant::now(),
         auth_service: AuthService::new(pool.clone(), config.jwt_secret),
         user_service: UserService::new(pool.clone()),
+        base_url: config.base_url.to_owned(),
     });
 
     // Router & routes
     let auth_router = Router::new()
         .route("/register", post(register_user))
-        .route("/login", post(login_user));
+        .route("/login", post(login_user))
+        .route("/refresh", post(refresh_token))
+        .route("/logout", post(logout));
 
     let order_router = Router::new()
         .route("/", post(place_order).get(get_orders))
