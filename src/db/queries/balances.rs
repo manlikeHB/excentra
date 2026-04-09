@@ -1,11 +1,11 @@
-use crate::db::models::balance::Balance;
+use crate::db::models::balance::DBBalance;
 use rust_decimal::Decimal;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-pub async fn get_balances(pool: &PgPool, user_id: Uuid) -> Result<Vec<Balance>, sqlx::Error> {
+pub async fn get_balances(pool: &PgPool, user_id: Uuid) -> Result<Vec<DBBalance>, sqlx::Error> {
     sqlx::query_as!(
-        Balance,
+        DBBalance,
         r#"SELECT id, user_id, asset, available, held, updated_at FROM balances WHERE user_id = $1"#,
         user_id
     )
@@ -17,8 +17,8 @@ pub async fn get_balance(
     pool: &PgPool,
     user_id: Uuid,
     asset: &str,
-) -> Result<Option<Balance>, sqlx::Error> {
-    sqlx::query_as!(Balance, r#"SELECT id, user_id, asset, available, held, updated_at FROM balances WHERE user_id = $1 AND asset = $2"#, user_id, asset).fetch_optional(pool).await
+) -> Result<Option<DBBalance>, sqlx::Error> {
+    sqlx::query_as!(DBBalance, r#"SELECT id, user_id, asset, available, held, updated_at FROM balances WHERE user_id = $1 AND asset = $2"#, user_id, asset).fetch_optional(pool).await
 }
 
 pub async fn deposit(
@@ -26,9 +26,9 @@ pub async fn deposit(
     user_id: Uuid,
     asset: &str,
     amount: Decimal,
-) -> Result<Balance, sqlx::Error> {
+) -> Result<DBBalance, sqlx::Error> {
     sqlx::query_as!(
-        Balance,
+        DBBalance,
         r#"INSERT INTO balances (user_id, asset, available)
 VALUES ($1, $2, $3)
 ON CONFLICT (user_id, asset)
@@ -47,11 +47,11 @@ pub async fn hold<'e, E>(
     user_id: Uuid,
     asset: &str,
     amount: Decimal,
-) -> Result<Balance, sqlx::Error>
+) -> Result<DBBalance, sqlx::Error>
 where
     E: sqlx::Executor<'e, Database = sqlx::Postgres>,
 {
-    sqlx::query_as!(Balance, r#"UPDATE balances SET available = available - $3, held = held + $3, updated_at = NOW() WHERE user_id = $1 AND asset = $2 AND available >= $3 RETURNING id, user_id, asset, available, held, updated_at"#, user_id, asset, amount).fetch_one(executor).await
+    sqlx::query_as!(DBBalance, r#"UPDATE balances SET available = available - $3, held = held + $3, updated_at = NOW() WHERE user_id = $1 AND asset = $2 AND available >= $3 RETURNING id, user_id, asset, available, held, updated_at"#, user_id, asset, amount).fetch_one(executor).await
 }
 
 pub async fn release<'e, E>(
@@ -59,11 +59,11 @@ pub async fn release<'e, E>(
     user_id: Uuid,
     asset: &str,
     amount: Decimal,
-) -> Result<Balance, sqlx::Error>
+) -> Result<DBBalance, sqlx::Error>
 where
     E: sqlx::Executor<'e, Database = sqlx::Postgres>,
 {
-    sqlx::query_as!(Balance, r#"UPDATE balances SET available = available + $3, held = held - $3, updated_at = NOW() WHERE user_id = $1 AND asset = $2 AND held >= $3 RETURNING id, user_id, asset, available, held, updated_at"#, user_id, asset, amount).fetch_one(executor).await
+    sqlx::query_as!(DBBalance, r#"UPDATE balances SET available = available + $3, held = held - $3, updated_at = NOW() WHERE user_id = $1 AND asset = $2 AND held >= $3 RETURNING id, user_id, asset, available, held, updated_at"#, user_id, asset, amount).fetch_one(executor).await
 }
 
 pub async fn transfer_on_fill(
@@ -116,4 +116,21 @@ pub async fn transfer_on_fill(
     .await?;
 
     Ok(())
+}
+
+pub async fn withdraw(
+    pool: &PgPool,
+    user_id: Uuid,
+    asset: &str,
+    amount: Decimal,
+) -> Result<Option<DBBalance>, sqlx::Error> {
+    sqlx::query_as!(
+        DBBalance,
+        r#"UPDATE balances SET available = available - $3, updated_at = NOW() WHERE user_id = $1 AND asset = $2 AND available >= $3 RETURNING id, user_id, asset, available, held, updated_at"#,
+        user_id,
+        asset,
+        amount
+    )
+    .fetch_optional(pool)
+    .await
 }

@@ -1,6 +1,10 @@
 use std::sync::Arc;
 
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{
+    Json,
+    extract::{Path, State},
+    http::StatusCode,
+};
 
 use crate::{
     api::{
@@ -10,30 +14,22 @@ use crate::{
             balances::{BalanceRequest, BalanceResponse},
         },
     },
-    db::queries as db_queries,
     error::AppError,
 };
 
-// TODO: Impl real deposit from supported blockchain
 pub async fn deposit(
     auth: AuthUser,
     State(state): State<Arc<AppState>>,
     Json(body): Json<BalanceRequest>,
 ) -> Result<(StatusCode, Json<BalanceResponse>), AppError> {
+    body.validate()?;
     let user_id = auth.0.user_id();
-    let asset = &body.asset.to_uppercase();
+    let asset = &body.asset.trim().to_uppercase();
 
-    // verify asset is supported
-    if !db_queries::is_valid_asset(&state.pool, asset).await? {
-        return Err(AppError::BadRequest(format!(
-            "{} is not supported",
-            &body.asset
-        )));
-    }
-
-    let bal = db_queries::deposit(&state.pool, user_id, asset, body.amount).await?;
-
-    tracing::info!(user_id = %user_id, asset = %asset, amount = %body.amount, "Deposit credited");
+    let bal = state
+        .balance_service
+        .deposit(user_id, body.amount, asset)
+        .await?;
 
     Ok((StatusCode::OK, Json(bal.into())))
 }
@@ -43,13 +39,44 @@ pub async fn get_balances(
     State(state): State<Arc<AppState>>,
 ) -> Result<(StatusCode, Json<Vec<BalanceResponse>>), AppError> {
     let user_id = auth.0.user_id();
-    let mut bal_vec = Vec::new();
 
-    let balances = db_queries::get_balances(&state.pool, user_id).await?;
+    let balances = state
+        .balance_service
+        .get_balances(user_id)
+        .await?
+        .into_iter()
+        .map(|b| b.into())
+        .collect();
 
-    for bal in balances {
-        bal_vec.push(bal.into());
-    }
+    Ok((StatusCode::OK, Json(balances)))
+}
 
-    Ok((StatusCode::OK, Json(bal_vec)))
+pub async fn withdraw(
+    auth: AuthUser,
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<BalanceRequest>,
+) -> Result<(StatusCode, Json<BalanceResponse>), AppError> {
+    body.validate()?;
+    let user_id = auth.0.user_id();
+    let asset = &body.asset.trim().to_uppercase();
+
+    let bal = state
+        .balance_service
+        .withdraw(user_id, body.amount, asset)
+        .await?;
+
+    Ok((StatusCode::OK, Json(bal.into())))
+}
+
+pub async fn get_balance(
+    auth: AuthUser,
+    State(state): State<Arc<AppState>>,
+    Path(asset): Path<String>,
+) -> Result<(StatusCode, Json<BalanceResponse>), AppError> {
+    let user_id = auth.0.user_id();
+    let asset = &asset.trim().to_uppercase();
+
+    let balance = state.balance_service.get_balance(user_id, asset).await?;
+
+    Ok((StatusCode::OK, Json(balance.into())))
 }

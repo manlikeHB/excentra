@@ -1,7 +1,6 @@
 use rust_decimal::Decimal;
-use uuid::Uuid;
 
-use crate::db::models::balance::Balance;
+use crate::{db::models::balance::DBBalance, error::AppError};
 
 #[derive(Debug, serde::Deserialize)]
 pub struct BalanceRequest {
@@ -9,18 +8,27 @@ pub struct BalanceRequest {
     pub asset: String,
 }
 
+impl BalanceRequest {
+    pub fn validate(&self) -> Result<(), AppError> {
+        if self.amount < Decimal::ZERO {
+            return Err(AppError::BadRequest(
+                "Amount cannot be less than Zero".to_string(),
+            ));
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, serde::Serialize)]
 pub struct BalanceResponse {
-    pub user_id: Uuid,
     pub asset: String,
     pub available: Decimal,
     pub held: Decimal,
 }
 
-impl From<Balance> for BalanceResponse {
-    fn from(bal: Balance) -> Self {
+impl From<DBBalance> for BalanceResponse {
+    fn from(bal: DBBalance) -> Self {
         BalanceResponse {
-            user_id: bal.user_id,
             asset: bal.asset,
             available: bal.available,
             held: bal.held,

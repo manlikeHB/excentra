@@ -8,7 +8,7 @@ use excentra::{
         handlers::{
             asset::{add_asset, get_all_assets},
             auth::{login_user, logout, refresh_token, register_user},
-            balances::{deposit, get_balances},
+            balances::{deposit, get_balance, get_balances, withdraw},
             health::health,
             orderbook::get_orderbook,
             orders::{cancel_order, get_order_by_id, get_orders, place_order},
@@ -26,9 +26,10 @@ use excentra::{
     db::queries as db_queries,
     engine::exchange::Exchange,
     services::{
-        assets::AssetService, auth::AuthService, orderbook::OrderBookService, orders::OrderService,
-        price_seed::PriceSeedService, ticker::TickerService, trades::TradeService,
-        trading_pair::TradingPairService, users::UserService,
+        assets::AssetService, auth::AuthService, balances::BalanceService,
+        orderbook::OrderBookService, orders::OrderService, price_seed::PriceSeedService,
+        ticker::TickerService, trades::TradeService, trading_pair::TradingPairService,
+        users::UserService,
     },
 };
 use sqlx::PgPool;
@@ -101,6 +102,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         auth_service: AuthService::new(pool.clone(), config.jwt_secret),
         user_service: UserService::new(pool.clone()),
         base_url: config.base_url.to_owned(),
+        balance_service: BalanceService::new(pool.clone()),
     });
 
     // Router & routes
@@ -116,7 +118,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let balance_router = Router::new()
         .route("/deposit", post(deposit))
-        .route("/", get(get_balances));
+        .route("/", get(get_balances))
+        .route("/withdraw", post(withdraw))
+        .route("/{asset}", get(get_balance));
 
     let pair_router = Router::new()
         .route("/", get(get_all_trading_pairs).post(add_trading_pair))
