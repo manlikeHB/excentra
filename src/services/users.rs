@@ -16,7 +16,7 @@ impl UserService {
     }
 
     pub async fn get_user(&self, user_id: Uuid) -> Result<User, AppError> {
-        let user = match db_queries::find_by_id(&self.pool, user_id).await? {
+        let user = match db_queries::find_user_by_id(&self.pool, user_id).await? {
             Some(u) => u,
             None => {
                 return Err(AppError::Unauthorized(
@@ -38,7 +38,7 @@ impl UserService {
         new_password: Option<&str>,
     ) -> Result<User, AppError> {
         if let Some(p) = current_password {
-            let user = match db_queries::find_by_id(&self.pool, user_id).await? {
+            let user = match db_queries::find_user_by_id(&self.pool, user_id).await? {
                 Some(u) => u,
                 None => {
                     return Err(AppError::Unauthorized(

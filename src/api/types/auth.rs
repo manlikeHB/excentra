@@ -40,5 +40,11 @@ pub struct LoginRequest {
 
 #[derive(serde::Serialize)]
 pub struct LoginResponse {
-    pub token: String,
+    pub access_token: String,
+    pub refresh_token: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct RefreshTokenRequest {
+    pub refresh_token: String,
 }

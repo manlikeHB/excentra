@@ -1,4 +1,4 @@
-use crate::api::types::auth::{LoginRequest, LoginResponse};
+use crate::api::types::auth::{LoginRequest, LoginResponse, RefreshTokenRequest};
 use crate::{
     api::types::{
         AppState,
@@ -30,10 +30,44 @@ pub async fn login_user(
 ) -> Result<(StatusCode, Json<LoginResponse>), AppError> {
     body.validate()?;
 
-    let token = state
+    let (access_token, refresh_token) = state
         .auth_service
         .login(&body.email, &body.password)
         .await?;
 
-    Ok((StatusCode::OK, Json(LoginResponse { token })))
+    // TODO: set refresh_token as httpOnly cookie
+    Ok((
+        StatusCode::OK,
+        Json(LoginResponse {
+            access_token,
+            refresh_token,
+        }),
+    ))
+}
+
+pub async fn refresh_token(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<RefreshTokenRequest>,
+) -> Result<(StatusCode, Json<LoginResponse>), AppError> {
+    let (access_token, refresh_token) = state
+        .auth_service
+        .refresh_token(&body.refresh_token)
+        .await?;
+
+    // TODO: set refresh_token as httpOnly cookie
+    Ok((
+        StatusCode::OK,
+        Json(LoginResponse {
+            access_token,
+            refresh_token,
+        }),
+    ))
+}
+
+pub async fn logout(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<RefreshTokenRequest>,
+) -> Result<StatusCode, AppError> {
+    state.auth_service.logout(&body.refresh_token).await?;
+    Ok(StatusCode::OK)
 }
