@@ -21,11 +21,16 @@ impl AuthService {
         password: &str,
     ) -> Result<(String, String), AppError> {
         let password_hash = hash_password(password)?;
+        let user = db_queries::create_user(&self.pool, email, &password_hash).await?;
 
-        db_queries::create_user(&self.pool, email, &password_hash).await?;
+        let access_token = create_token(user.id, user.role, &self.jwt_secret)?;
+        let refresh_token = generate_refresh_token();
+        let token_hash = hash_refresh_token(&refresh_token);
+        let expires_at = chrono::Utc::now() + chrono::Duration::days(7);
+        db_queries::create_refresh_token(&self.pool, user.id, &token_hash, expires_at).await?;
 
-        // auto login after registration
-        Ok(self.login(email, password).await?)
+        tracing::info!(user_id = %user.id, "User registered");
+        Ok((access_token, refresh_token))
     }
 
     pub async fn login(&self, email: &str, password: &str) -> Result<(String, String), AppError> {
