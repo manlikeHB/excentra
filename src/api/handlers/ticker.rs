@@ -3,8 +3,8 @@ use std::sync::Arc;
 use axum::{
     Json,
     extract::{Path, State},
+    http::StatusCode,
 };
-use reqwest::StatusCode;
 
 use crate::{
     api::types::AppState, error::AppError, services::ticker::Ticker,
