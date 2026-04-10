@@ -13,6 +13,7 @@ pub struct UserResponse {
     pub username: Option<String>,
     pub email: String,
     pub role: UserRole,
+    pub is_suspended: bool,
     pub created_at: chrono::DateTime<Utc>,
     pub updated_at: chrono::DateTime<Utc>,
 }
@@ -24,6 +25,7 @@ impl From<User> for UserResponse {
             username: u.username,
             email: u.email,
             role: u.role,
+            is_suspended: u.is_suspended,
             created_at: u.created_at,
             updated_at: u.updated_at,
         }

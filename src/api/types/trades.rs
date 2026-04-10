@@ -2,9 +2,12 @@ use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
-use crate::db::models::{
-    order::DBOrderSide,
-    trade::{DBTrade, TradeWithSymbolAndSide},
+use crate::{
+    db::models::{
+        order::DBOrderSide,
+        trade::{DBTrade, TradeWithSymbolAndSide},
+    },
+    utils::query_builder::QueryOrder,
 };
 
 #[derive(Debug, serde::Serialize)]
@@ -33,6 +36,7 @@ pub struct TradeParams {
     pub limit: Option<u64>,
     pub pair: Option<String>,
     pub page: Option<u64>,
+    pub order: Option<QueryOrder>,
 }
 
 #[derive(Debug, serde::Serialize)]

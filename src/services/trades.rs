@@ -8,7 +8,7 @@ use crate::{
     },
     error::AppError,
     types::asset_symbol::{AssetSymbol, AssetSymbolError},
-    utils::query_builder,
+    utils::query_builder::{self, QueryOrder},
 };
 
 pub struct TradeService {
@@ -43,6 +43,7 @@ impl TradeService {
         pair: Option<&str>,
         page: Option<u64>,
         limit: Option<u64>,
+        order: Option<QueryOrder>,
     ) -> Result<(Vec<TradeWithSymbolAndSide>, i64), AppError> {
         // build trade query
         let mut trade_builder = sqlx::QueryBuilder::new(
@@ -78,7 +79,7 @@ impl TradeService {
 
         // apply filter and pagination to trade_builder
         query_builder::apply_pair_filter(&self.pool, &mut trade_builder, pair, "t").await?;
-        query_builder::apply_pagination(&mut trade_builder, page, limit, "t");
+        query_builder::apply_pagination(&mut trade_builder, page, limit, "t", order);
 
         // apply filter and pagination to count_builder
         query_builder::apply_pair_filter(&self.pool, &mut count_builder, pair, "t").await?;

@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     services::{
-        assets::AssetService, auth::AuthService, balances::BalanceService,
+        admin::AdminService, assets::AssetService, auth::AuthService, balances::BalanceService,
         orderbook::OrderBookService, orders::OrderService, ticker::TickerService,
         trades::TradeService, trading_pair::TradingPairService, users::UserService,
     },
@@ -29,4 +29,5 @@ pub struct AppState {
     pub user_service: UserService,
     pub base_url: String,
     pub balance_service: BalanceService,
+    pub admin_service: AdminService,
 }

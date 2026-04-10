@@ -1,6 +1,7 @@
 use crate::{
     db::models::order::{DBOrder, DBOrderSide, DBOrderStatus, DBOrderType, OrderWithSymbol},
     error::AppError,
+    utils::query_builder::QueryOrder,
 };
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
@@ -148,6 +149,7 @@ pub struct GetOrdersParams {
     pub pair: Option<String>,
     pub page: Option<u64>,
     pub limit: Option<u64>,
+    pub order: Option<QueryOrder>,
 }
 
 pub fn deserialize_status<'de, D>(deserializer: D) -> Result<Option<DBOrderStatus>, D::Error>

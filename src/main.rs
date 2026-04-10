@@ -1,11 +1,12 @@
 use axum::{
     Router,
-    routing::{delete, get, post},
+    routing::{delete, get, patch, post},
 };
 use dotenvy::dotenv;
 use excentra::{
     api::{
         handlers::{
+            admin::{get_all_users_summary, suspend_user, update_role},
             asset::{add_asset, get_all_assets},
             auth::{login_user, logout, refresh_token, register_user},
             balances::{deposit, get_balance, get_balances, withdraw},
@@ -26,7 +27,7 @@ use excentra::{
     db::queries as db_queries,
     engine::exchange::Exchange,
     services::{
-        assets::AssetService, auth::AuthService, balances::BalanceService,
+        admin::AdminService, assets::AssetService, auth::AuthService, balances::BalanceService,
         orderbook::OrderBookService, orders::OrderService, price_seed::PriceSeedService,
         ticker::TickerService, trades::TradeService, trading_pair::TradingPairService,
         users::UserService,
@@ -103,6 +104,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         user_service: UserService::new(pool.clone()),
         base_url: config.base_url.to_owned(),
         balance_service: BalanceService::new(pool.clone()),
+        admin_service: AdminService::new(pool.clone()),
     });
 
     // Router & routes
@@ -141,6 +143,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let user_router = Router::new().route("/me", get(get_user).patch(update_user));
 
+    let admin_router = Router::new()
+        .route("/users", get(get_all_users_summary))
+        .route("/users/{user_id}/suspend", patch(suspend_user))
+        .route("/users/{user_id}/role", patch(update_role));
+
     let api_routes = Router::new()
         .nest("/auth", auth_router)
         .nest("/orders", order_router)
@@ -150,7 +157,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/assets", asset_router)
         .nest("/orderbook", orderbook_router)
         .nest("/ticker", ticker_router)
-        .nest("/users", user_router);
+        .nest("/users", user_router)
+        .nest("/admin", admin_router);
 
     let app = Router::new()
         .nest(&config.base_url, api_routes)
