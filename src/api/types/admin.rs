@@ -56,3 +56,19 @@ pub struct SuspendUserRequest {
 pub struct UpdateUserRoleRequest {
     pub role: UserRole,
 }
+
+#[derive(Debug, serde::Serialize)]
+pub struct AdminStats {
+    pub total_users: i64,
+    pub total_trades: i64,
+    pub active_ws_connections: u64,
+    pub orders_processed: u64,
+    pub uptime_seconds: u64,
+    pub volume_24h: Vec<PairVolume>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct PairVolume {
+    pub symbol: String,
+    pub volume: Decimal,
+}

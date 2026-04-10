@@ -2,13 +2,16 @@ use sqlx::{PgPool, QueryBuilder};
 use uuid::Uuid;
 
 use crate::{
-    api::types::admin::UserSummary,
+    api::types::admin::{AdminStats, PairVolume, UserSummary},
     db::{
         models::user::{User, UserRole},
         queries as db_queries,
     },
     error::AppError,
-    utils::query_builder::{self, QueryOrder},
+    utils::{
+        query_builder::{self, QueryOrder},
+        ticker::get_ticker_helper,
+    },
 };
 
 pub struct AdminService {
@@ -67,10 +70,10 @@ impl AdminService {
     pub async fn suspend_user(&self, user_id: Uuid, suspended: bool) -> Result<User, AppError> {
         let user = match db_queries::suspend_user(&self.pool, user_id, suspended).await? {
             Some(u) => u,
-            None => return Err(AppError::BadRequest("Invalid user id".to_string())),
+            None => return Err(AppError::NotFound(format!("User `{}` not found", user_id))),
         };
 
-        tracing::info!(user_id = %user_id, "User suspended");
+        tracing::info!(user_id = %user_id, suspended = suspended, "User suspension updated");
 
         Ok(user)
     }
@@ -78,11 +81,48 @@ impl AdminService {
     pub async fn update_role(&self, user_id: Uuid, role: UserRole) -> Result<User, AppError> {
         let user = match db_queries::update_role(&self.pool, user_id, role).await? {
             Some(u) => u,
-            None => return Err(AppError::BadRequest("Invalid user id".to_string())),
+            None => return Err(AppError::NotFound(format!("User `{}` not found", user_id))),
         };
 
         tracing::info!(user_id = %user_id, role = ?role, "User role updated");
 
         Ok(user)
+    }
+
+    pub async fn get_stats(
+        &self,
+        active_ws_connections: u64,
+        orders_processed: u64,
+        uptime_seconds: u64,
+    ) -> Result<AdminStats, AppError> {
+        let total_users = db_queries::count_users(&self.pool).await?;
+        let total_trades = db_queries::count_trades(&self.pool).await?;
+        let mut volume_24h = vec![];
+
+        let trade_stats = db_queries::get_all_trade_stats(&self.pool).await?;
+
+        for trade_stat in trade_stats {
+            match get_ticker_helper(&trade_stat) {
+                Some(t) => {
+                    let pair_volume = PairVolume {
+                        symbol: t.symbol,
+                        volume: t.volume_24h,
+                    };
+                    volume_24h.push(pair_volume);
+                }
+                None => tracing::warn!(pair = %trade_stat.symbol, "No trades found for"),
+            }
+        }
+
+        let admin_stat = AdminStats {
+            total_users,
+            total_trades,
+            active_ws_connections,
+            orders_processed,
+            uptime_seconds,
+            volume_24h,
+        };
+
+        Ok(admin_stat)
     }
 }

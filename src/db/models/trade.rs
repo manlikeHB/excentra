@@ -31,6 +31,7 @@ impl From<Trade> for DBTrade {
 
 #[derive(Debug, serde::Serialize)]
 pub struct TradeStat {
+    pub symbol: String,
     pub high_24h: Option<Decimal>,
     pub low_24h: Option<Decimal>,
     pub volume_24h: Option<Decimal>,

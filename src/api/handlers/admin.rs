@@ -12,7 +12,10 @@ use crate::{
         middleware::AdminUser,
         types::{
             AppState, PaginatedResponse,
-            admin::{SuspendUserRequest, UpdateUserRoleRequest, UserSummary, UserSummaryParam},
+            admin::{
+                AdminStats, SuspendUserRequest, UpdateUserRoleRequest, UserSummary,
+                UserSummaryParam,
+            },
             users::UserResponse,
         },
     },
@@ -62,4 +65,21 @@ pub async fn update_role(
 ) -> Result<(StatusCode, Json<UserResponse>), AppError> {
     let user = state.admin_service.update_role(user_id, body.role).await?;
     Ok((StatusCode::OK, Json(user.into())))
+}
+
+pub async fn get_admin_stat(
+    _auth: AdminUser,
+    State(state): State<Arc<AppState>>,
+) -> Result<(StatusCode, Json<AdminStats>), AppError> {
+    let stats = state
+        .admin_service
+        .get_stats(
+            state
+                .ws_connections
+                .load(std::sync::atomic::Ordering::Relaxed),
+            state.order_service.orders_processed(),
+            state.started_at.elapsed().as_secs(),
+        )
+        .await?;
+    Ok((StatusCode::OK, Json(stats)))
 }

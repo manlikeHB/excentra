@@ -6,7 +6,7 @@ use dotenvy::dotenv;
 use excentra::{
     api::{
         handlers::{
-            admin::{get_all_users_summary, suspend_user, update_role},
+            admin::{get_admin_stat, get_all_users_summary, suspend_user, update_role},
             asset::{add_asset, get_all_assets},
             auth::{login_user, logout, refresh_token, register_user},
             balances::{deposit, get_balance, get_balances, withdraw},
@@ -146,7 +146,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let admin_router = Router::new()
         .route("/users", get(get_all_users_summary))
         .route("/users/{user_id}/suspend", patch(suspend_user))
-        .route("/users/{user_id}/role", patch(update_role));
+        .route("/users/{user_id}/role", patch(update_role))
+        .route("/stats", get(get_admin_stat));
 
     let api_routes = Router::new()
         .nest("/auth", auth_router)

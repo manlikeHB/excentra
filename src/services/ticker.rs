@@ -3,9 +3,9 @@ use sqlx::PgPool;
 use tokio::sync::broadcast;
 use tokio::time::{Duration, sleep};
 
-use crate::db::models::trade::TradeStat;
 use crate::error::AppError;
 use crate::types::asset_symbol::AssetSymbol;
+use crate::utils::ticker::get_ticker_helper;
 use crate::{db::queries as db_queries, ws::messages::WsEvent};
 
 pub struct TickerService {
@@ -15,6 +15,7 @@ pub struct TickerService {
 
 #[derive(Debug, serde::Serialize)]
 pub struct Ticker {
+    pub symbol: String,
     pub last_price: Decimal,
     pub high_24h: Decimal,
     pub low_24h: Decimal,
@@ -24,6 +25,7 @@ pub struct Ticker {
 
 impl Ticker {
     pub fn new(
+        symbol: &str,
         last_price: Decimal,
         high_24h: Decimal,
         low_24h: Decimal,
@@ -31,6 +33,7 @@ impl Ticker {
         price_change_pct: Decimal,
     ) -> Self {
         Ticker {
+            symbol: symbol.to_string(),
             last_price,
             high_24h,
             low_24h,
@@ -38,13 +41,6 @@ impl Ticker {
             price_change_pct,
         }
     }
-}
-
-#[derive(Debug, serde::Serialize)]
-pub struct TickerWithSymbol {
-    symbol: String,
-    #[serde(flatten)]
-    ticker: Ticker,
 }
 
 impl TickerService {
@@ -56,27 +52,22 @@ impl TickerService {
         loop {
             sleep(Duration::from_secs(5)).await;
 
-            let pairs = match db_queries::get_active_trading_pairs(&self.pool).await {
-                Ok(pairs) => pairs,
+            let trade_stats = match db_queries::get_all_trade_stats(&self.pool).await {
+                Ok(ts) => ts,
                 Err(_) => continue,
             };
 
-            for pair in pairs {
-                let stat = match db_queries::get_trade_stats(&self.pool, pair.id).await {
-                    Ok(s) => s,
-                    Err(_) => continue,
-                };
-
+            for stat in trade_stats {
                 // if there is no ticker — skip
-                let ticker = match Self::get_ticker(stat) {
+                let ticker = match get_ticker_helper(&stat) {
                     Some(t) => t,
                     None => continue,
                 };
 
                 let _ = self.ws_sender.send(WsEvent::TickerUpdate {
-                    symbol: pair.symbol,
+                    symbol: stat.symbol,
                     last_price: ticker.last_price,
-                    high_24h: ticker.last_price,
+                    high_24h: ticker.high_24h,
                     low_24h: ticker.low_24h,
                     volume_24h: ticker.volume_24h,
                     price_change_pct: ticker.price_change_pct,
@@ -91,68 +82,44 @@ impl TickerService {
             None => return Err(AppError::BadRequest("Invalid pair symbol".to_string())),
         };
 
-        let ts = db_queries::get_trade_stats(&self.pool, tp.id).await?;
+        let ts = match db_queries::get_trade_stats(&self.pool, tp.id).await? {
+            Some(trade_stat) => trade_stat,
+            None => {
+                return Err(AppError::NotFound(format!(
+                    "No trades found for this pair {}",
+                    symbol.as_str()
+                )));
+            }
+        };
 
-        let ticker = match Self::get_ticker(ts) {
+        let ticker = match get_ticker_helper(&ts) {
             Some(t) => t,
             None => {
-                return Err(AppError::NotFound(
-                    "No trades found for this pair".to_string(),
-                ));
+                return Err(AppError::NotFound(format!(
+                    "No trades found for this pair {}",
+                    ts.symbol
+                )));
             }
         };
 
         Ok(ticker)
     }
 
-    // TODO: refactor to use single aggregated SQL query instead of N+1 DB queries
-    pub async fn get_all_tickers(&self) -> Result<Vec<TickerWithSymbol>, AppError> {
-        let tps = db_queries::get_active_trading_pairs(&self.pool).await?;
-        let mut trade_stats = vec![];
+    pub async fn get_all_tickers(&self) -> Result<Vec<Ticker>, AppError> {
+        let mut tickers = vec![];
 
-        for tp in tps {
-            let trade_stat = db_queries::get_trade_stats(&self.pool, tp.id).await?;
+        let trade_stats = db_queries::get_all_trade_stats(&self.pool).await?;
 
-            match Self::get_ticker(trade_stat) {
-                Some(t) => trade_stats.push(TickerWithSymbol {
-                    symbol: tp.symbol,
-                    ticker: t,
-                }),
+        for ts in trade_stats {
+            match get_ticker_helper(&ts) {
+                Some(t) => tickers.push(t),
                 None => {
-                    tracing::warn!(symbol = %tp.symbol, "No trades found for");
+                    tracing::warn!(symbol = %ts.symbol, "No trades found for");
                 }
             };
         }
 
-        tracing::info!(count = %trade_stats.len(), "Tickers fetched");
-        Ok(trade_stats)
-    }
-
-    fn get_ticker(stat: TradeStat) -> Option<Ticker> {
-        // if any of these are None, there are no trades — return None
-        let (Some(high_24h), Some(low_24h), Some(volume_24h), Some(last_price)) = (
-            stat.high_24h,
-            stat.low_24h,
-            stat.volume_24h,
-            stat.last_price,
-        ) else {
-            return None;
-        };
-
-        // use baseline if available, fall back to oldest trade in window
-        let Some(baseline_price) = stat.baseline_price.or(stat.oldest_price) else {
-            return None;
-        };
-
-        let price_change_pct =
-            (last_price - baseline_price) / baseline_price * Decimal::ONE_HUNDRED;
-
-        Some(Ticker::new(
-            last_price,
-            high_24h,
-            low_24h,
-            volume_24h,
-            price_change_pct,
-        ))
+        tracing::info!(count = %tickers.len(), "Tickers fetched");
+        Ok(tickers)
     }
 }
