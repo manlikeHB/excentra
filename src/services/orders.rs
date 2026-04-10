@@ -21,7 +21,7 @@ use crate::{
     },
     error::AppError,
     types::asset_symbol::AssetSymbol,
-    utils::query_builder,
+    utils::query_builder::{self},
     ws::messages::WsEvent,
 };
 
@@ -552,7 +552,13 @@ impl OrderService {
             "o",
         )
         .await?;
-        query_builder::apply_pagination(&mut order_builder, params.page, params.limit, "o");
+        query_builder::apply_pagination(
+            &mut order_builder,
+            params.page,
+            params.limit,
+            "o",
+            params.order,
+        );
 
         // build count order query
         let mut count_builder = QueryBuilder::new(

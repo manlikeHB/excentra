@@ -46,7 +46,13 @@ pub async fn get_trade_history(
 
     let (trade, count) = state
         .trade_service
-        .get_trade_history(user_id, params.pair.as_deref(), params.page, params.limit)
+        .get_trade_history(
+            user_id,
+            params.pair.as_deref(),
+            params.page,
+            params.limit,
+            params.order,
+        )
         .await?;
 
     Ok((

@@ -17,6 +17,7 @@ pub struct User {
     pub password_hash: String,
     pub username: Option<String>,
     pub role: UserRole,
+    pub is_suspended: bool,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }

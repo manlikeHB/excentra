@@ -7,6 +7,13 @@ use crate::{
     types::asset_symbol::AssetSymbol,
 };
 
+#[derive(Debug, serde::Deserialize, Clone, Copy)]
+// #[serde(rename_all = "lowercase")]
+pub enum QueryOrder {
+    ASC,
+    DESC,
+}
+
 pub fn apply_status_filter<'q>(
     builder: &mut QueryBuilder<'q, sqlx::Postgres>,
     status: Option<DBOrderStatus>,
@@ -44,28 +51,34 @@ pub fn apply_pagination<'q>(
     page: Option<u64>,
     limit: Option<u64>,
     table: &str,
+    order: Option<QueryOrder>,
 ) {
+    let order = match order {
+        Some(QueryOrder::ASC) => "ASC",
+        Some(QueryOrder::DESC) | None => "DESC",
+    };
+
     match (page, limit) {
         (Some(p), Some(l)) => {
             let offset = (p - 1) * l;
-            builder.push(format!(" ORDER BY {}.created_at DESC LIMIT ", table));
+            builder.push(format!(" ORDER BY {}.created_at {} LIMIT ", table, order));
             builder.push_bind(l as i64);
             builder.push(" OFFSET ");
             builder.push_bind(offset as i64);
         }
         (Some(p), None) => {
             let offset = (p - 1) * constants::DEFAULT_PAGE_SIZE;
-            builder.push(format!(" ORDER BY {}.created_at DESC LIMIT ", table));
+            builder.push(format!(" ORDER BY {}.created_at {} LIMIT ", table, order));
             builder.push_bind(constants::DEFAULT_PAGE_SIZE as i64);
             builder.push(" OFFSET ");
             builder.push_bind(offset as i64);
         }
         (None, Some(l)) => {
-            builder.push(format!(" ORDER BY {}.created_at DESC LIMIT ", table));
+            builder.push(format!(" ORDER BY {}.created_at {} LIMIT ", table, order));
             builder.push_bind(l as i64);
         }
         (None, None) => {
-            builder.push(format!(" ORDER BY {}.created_at DESC LIMIT ", table));
+            builder.push(format!(" ORDER BY {}.created_at {} LIMIT ", table, order));
             builder.push_bind(constants::DEFAULT_PAGE_SIZE as i64);
         }
     }
