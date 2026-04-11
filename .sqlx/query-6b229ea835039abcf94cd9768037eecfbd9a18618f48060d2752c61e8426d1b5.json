@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, user_id, asset, available, held, updated_at FROM balances WHERE user_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "asset",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "available",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 4,
+        "name": "held",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 5,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "6b229ea835039abcf94cd9768037eecfbd9a18618f48060d2752c61e8426d1b5"
+}

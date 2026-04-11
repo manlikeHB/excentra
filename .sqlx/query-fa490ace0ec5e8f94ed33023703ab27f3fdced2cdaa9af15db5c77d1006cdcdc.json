@@ -1,0 +1,54 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n    INSERT INTO trading_pairs (base_asset, quote_asset, symbol) \n    VALUES ($1,$2, $3) RETURNING *",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "base_asset",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "quote_asset",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "symbol",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "is_active",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "fa490ace0ec5e8f94ed33023703ab27f3fdced2cdaa9af15db5c77d1006cdcdc"
+}

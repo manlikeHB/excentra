@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n    INSERT INTO balances (user_id, asset, available) \n    VALUES ($1, $2, $3) \n    ON CONFLICT (user_id, asset) \n    DO UPDATE SET available = balances.available + $3, updated_at = NOW()\n    ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Numeric"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "aa5b3971cb28f4897adc1409b241f32c6b5896bd646640296ad0f5a061cacd4b"
+}

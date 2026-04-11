@@ -1,0 +1,56 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT \n                tp.symbol,\n                MAX(t.price) as high_24h,\n                MIN(t.price) as low_24h,\n                SUM(t.quantity) as volume_24h,\n                (SELECT t2.price FROM trades t2 \n                WHERE t2.pair_id = tp.id \n                AND t2.created_at >= NOW() - INTERVAL '24 hours' \n                ORDER BY t2.created_at ASC LIMIT 1) as oldest_price,\n                (SELECT t2.price FROM trades t2 \n                WHERE t2.pair_id = tp.id \n                AND t2.created_at < NOW() - INTERVAL '24 hours' \n                ORDER BY t2.created_at DESC LIMIT 1) as baseline_price,\n                (SELECT t2.price FROM trades t2 \n                WHERE t2.pair_id = tp.id \n                ORDER BY t2.created_at DESC LIMIT 1) as last_price\n            FROM trading_pairs tp\n            LEFT JOIN trades t ON t.pair_id = tp.id \n                AND t.created_at >= NOW() - INTERVAL '24 hours'\n            WHERE tp.is_active = true\n            GROUP BY tp.id, tp.symbol\n    ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "symbol",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "high_24h",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 2,
+        "name": "low_24h",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 3,
+        "name": "volume_24h",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 4,
+        "name": "oldest_price",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 5,
+        "name": "baseline_price",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 6,
+        "name": "last_price",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "b4c1a0628a3d62a6b7cbd5cb4555a04d6540ef1577c71f488113d0368098acf6"
+}

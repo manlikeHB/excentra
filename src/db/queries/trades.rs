@@ -131,6 +131,6 @@ pub async fn count_trades(pool: &PgPool) -> Result<i64, sqlx::Error> {
     let count = sqlx::query_scalar!("SELECT COUNT(*) FROM trades")
         .fetch_one(pool)
         .await?
-        .unwrap_or(0);
+        .unwrap_or(0i64);
     Ok(count)
 }

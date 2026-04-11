@@ -58,6 +58,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // init db pool
     let pool = PgPool::connect(&config.database_url).await?;
+    // Run any pending migrations on startup.
+    // safe to run on every startup, including fresh and existing databases.
+    sqlx::migrate!().run(&pool).await?;
 
     // load trading pairs and resting orders into exchange
     let pairs = db_queries::get_active_trading_pairs(&pool).await?;
