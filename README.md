@@ -2,8 +2,7 @@
 
 A production-grade centralized cryptocurrency exchange backend built in Rust. Features a custom in-memory matching engine, real-time WebSocket streaming, JWT authentication, PostgreSQL persistence, and live price seeding via CoinGecko.
 
-> **Status:** Phases 1–7 complete. Ethereum Sepolia testnet integration planned.
-
+> **Status:** Phases 1–10 complete. Backend API, WebSocket streaming, admin panel, and Docker setup done. Ethereum Sepolia testnet integration planned.
 ---
 
 ## Overview
@@ -14,37 +13,54 @@ Excentra models how real exchanges like Binance or Kraken work under the hood �
 
 **Core capabilities:**
 - Limit and market order placement with immediate matching
+- Price-time priority (FIFO) matching engine with partial fill support
+- Self-trade prevention (STP) — limit orders checked against user's own resting orders
+- Wash trading protection in the matching loop
 - Real-time order book, trade feed, and 24h ticker via WebSocket
-- Balance management with holds — funds locked on order placement, released on cancel
-- JWT authentication with role-based access control
+- Balance management with holds — funds locked on placement, released on cancel
+- JWT authentication with refresh token rotation via httpOnly cookies
+- Role-based access control (user / admin)
+- Paginated order and trade history with status and pair filtering
+- Admin panel — user management, role promotion, account suspension, system metrics
 - Order book seeded with live prices from CoinGecko at startup
 
 ---
 
 ## Getting Started
 
-### Prerequisites
+### Option A — Docker (recommended)
 
-- [Rust](https://rustup.rs/) (stable, edition 2024)
+**Prerequisites:** [Docker](https://www.docker.com/)
+
+```bash
+git clone https://github.com/manlikeHB/excentra.git
+cd excentra
+cp .env.example .env   # fill in your values
+docker compose up
+```
+
+Migrations run automatically on first start. Server available at `http://localhost:3000`.
+
+---
+
+### Option B — Manual
+
+**Prerequisites:**
+- [Rust](https://rustup.rs/) (stable)
 - [PostgreSQL](https://www.postgresql.org/) (v14+)
 - [sqlx-cli](https://github.com/launchbadge/sqlx/tree/main/sqlx-cli)
+
 ```bash
 cargo install sqlx-cli --no-default-features --features rustls,postgres
 ```
 
----
-
-### 1. Clone the repo
+**1. Clone the repo**
 ```bash
 git clone https://github.com/manlikeHB/excentra.git
 cd excentra
 ```
 
----
-
-### 2. Configure environment
-
-Copy the example and fill in your values:
+**2. Configure environment**
 ```bash
 cp .env.example .env
 ```
@@ -58,79 +74,16 @@ PORT=3000
 RUST_LOG=info,tower_http=debug
 ```
 
-> **Note:** The server will panic at startup if any of these are missing — this is intentional.
-
----
-
-### 3. Set up the database
-```bash
-# Create the database
-sqlx database create
-
-# Run all migrations
-sqlx migrate run
-```
-
-This creates all tables and seeds BTC/USDT, ETH/USDT, and SOL/USDT trading pairs.
-
----
-
-### 4. Run the server
+**3. Run the server**
 ```bash
 cargo run
 ```
 
-On startup, the server will:
-- Rebuild the in-memory order book from open orders in the database
-- Fetch live prices from CoinGecko and seed the order book
-- Start the ticker background task (24h stats refresh)
+Migrations run automatically on startup. On first run the server will also fetch live prices from CoinGecko and seed the order book.
 
-You should see: INFO excentra: Server listening port=3000
-
----
-
-### 5. Try it out
-
-**Register:**
-```bash
-curl -X POST http://localhost:3000/api/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email": "trader@example.com", "password": "password123"}'
+You should see:
 ```
-
-**Login:**
-```bash
-curl -X POST http://localhost:3000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email": "trader@example.com", "password": "password123"}'
-```
-
-**Deposit funds:**
-```bash
-curl -X POST http://localhost:3000/api/v1/balances/deposit \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{"asset": "USDT", "amount": "10000"}'
-```
-
-**Place a limit order:**
-```bash
-curl -X POST http://localhost:3000/api/v1/orders \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{"pair": "BTC/USDT", "side": "buy", "order_type": "limit", "price": "80000", "quantity": "0.1"}'
-```
-
-**View the order book:**
-```bash
-curl http://localhost:3000/api/v1/orderbook/BTC/USDT
-```
-
-**WebSocket (Postman or wscat):**
-```bash
-wscat -c ws://localhost:3000/ws
-# Then send:
-{"type": "subscribe", "channel": "orderbook:BTC/USDT"}
+INFO excentra: Server listening port=3000
 ```
 
 ---
@@ -240,14 +193,16 @@ Holding a `MutexGuard` across an `.await` is a deadlock risk in async Rust. Guar
 | 1 | Project setup, domain types, database schema | ✅ Complete |
 | 2 | Matching engine (in-memory, FIFO) | ✅ Complete |
 | 3 | Database layer (sqlx queries) | ✅ Complete |
-| 4 | Auth (JWT + argon2) | ✅ Complete |
+| 4 | Auth (JWT + argon2 + refresh tokens) | ✅ Complete |
 | 5 | REST API | ✅ Complete |
 | 6 | WebSocket streaming | ✅ Complete |
 | 7 | Ticker service + CoinGecko price seeding | ✅ Complete |
-| 8 | Observability (tracing, metrics) | ✅ Complete |
+| 8 | Observability (tracing, health check) | ✅ Complete |
 | 9 | Ethereum Sepolia testnet integration | 📋 Planned |
-| 10 | Frontend (React / Next.js) | 🔄 In Progress |
-| 11 | Deployment (Docker, VPS, CI/CD) | 📋 Planned |
+| 10 | Admin panel (backend API) | ✅ Complete |
+| 11 | Docker + docker-compose | ✅ Complete |
+| 12 | Frontend (React / Next.js) | 🔄 Planned |
+| 13 | Deployment | 📋 Planned |
 
 ### Blockchain Integration (Phase 9)
 
