@@ -19,6 +19,20 @@ use crate::{
     error::AppError,
 };
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/orders",
+    tag = "Orders",
+    request_body = PlaceOrderRequest,
+    responses(
+        (status = 200, description = "Order placed successfully", body = PlaceOrderResponse),
+        (status = 400, description = "Invalid order request"),
+        (status = 401, description = "Not authenticated"),
+        (status = 422, description = "Insufficient balance or unsupported pair"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn place_order(
     auth: AuthUser,
     State(state): State<Arc<AppState>>,
@@ -34,6 +48,24 @@ pub async fn place_order(
     Ok((StatusCode::OK, Json(res)))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/orders",
+    tag = "Orders",
+    params(
+        ("status" = Option<String>, Query, description = "Filter by status: open, filled, cancelled, partially_filled"),
+        ("pair" = Option<String>, Query, description = "Filter by trading pair e.g BTC/USDT"),
+        ("page" = Option<u64>, Query, description = "Page number"),
+        ("limit" = Option<u64>, Query, description = "Items per page"),
+        ("order" = Option<String>, Query, description = "Sort order: asc or desc"),
+    ),
+    responses(
+        (status = 200, description = "Orders fetched successfully", body = PaginatedResponse<OrderResponse>),
+        (status = 401, description = "Not authenticated"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn get_orders(
     auth: AuthUser,
     State(state): State<Arc<AppState>>,
@@ -56,6 +88,20 @@ pub async fn get_orders(
     ))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/api/v1/orders/{order_id}",
+    tag = "Orders",
+    params(("order_id" = Uuid, Path, description = "Order ID")),
+    responses(
+        (status = 200, description = "Order cancelled successfully", body = OrderResponse),
+        (status = 400, description = "Order cannot be cancelled"),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Order does not belong to user"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn cancel_order(
     auth: AuthUser,
     State(state): State<Arc<AppState>>,
@@ -67,6 +113,19 @@ pub async fn cancel_order(
     Ok((StatusCode::OK, Json(order_response)))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/orders/{order_id}",
+    tag = "Orders",
+    params(("order_id" = Uuid, Path, description = "Order ID")),
+    responses(
+        (status = 200, description = "Order fetched successfully", body = OrderResponse),
+        (status = 401, description = "Not authenticated"),
+        (status = 404, description = "Order not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn get_order_by_id(
     auth: AuthUser,
     State(state): State<Arc<AppState>>,

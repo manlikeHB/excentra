@@ -1,5 +1,5 @@
 use axum::{
-    Router,
+    Json, Router,
     routing::{delete, get, patch, post},
 };
 use dotenvy::dotenv;
@@ -25,6 +25,7 @@ use excentra::{
     },
     config::Config,
     db::queries as db_queries,
+    doc::ApiDoc,
     engine::exchange::Exchange,
     services::{
         admin::AdminService, assets::AssetService, auth::AuthService, balances::BalanceService,
@@ -41,6 +42,8 @@ use std::{
 use tokio::sync::{Mutex, broadcast};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{self, EnvFilter};
+use utoipa::OpenApi;
+use utoipa_scalar::{Scalar, Servable};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -165,6 +168,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/admin", admin_router);
 
     let app = Router::new()
+        .merge(Scalar::with_url("/docs", ApiDoc::openapi()))
+        .route(
+            "/api-docs/openapi.json",
+            get(|| async { Json(ApiDoc::openapi()) }),
+        )
         .nest(&config.base_url, api_routes)
         .route("/health", get(health))
         .route("/ws", get(ws_handler))

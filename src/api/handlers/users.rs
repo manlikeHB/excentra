@@ -12,6 +12,17 @@ use crate::{
     error::AppError,
 };
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/users/me",
+    tag = "Users",
+    responses(
+        (status = 200, description = "User profile fetched", body = UserResponse),
+        (status = 401, description = "Not authenticated"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn get_user(
     auth: AuthUser,
     State(state): State<Arc<AppState>>,
@@ -22,6 +33,20 @@ pub async fn get_user(
     Ok((StatusCode::OK, Json(user.into())))
 }
 
+#[utoipa::path(
+    patch,
+    path = "/api/v1/users/me",
+    tag = "Users",
+    request_body = UpdateUserRequest,
+    responses(
+        (status = 200, description = "User profile updated", body = UserResponse),
+        (status = 400, description = "Invalid request body"),
+        (status = 401, description = "Not authenticated or incorrect current password"),
+        (status = 409, description = "Username already taken"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn update_user(
     auth: AuthUser,
     State(state): State<Arc<AppState>>,

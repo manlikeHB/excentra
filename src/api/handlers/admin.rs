@@ -23,6 +23,23 @@ use crate::{
     error::AppError,
 };
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/admin/users",
+    tag = "Admin",
+    params(
+        ("page" = Option<u64>, Query, description = "Page number"),
+        ("limit" = Option<u64>, Query, description = "Items per page"),
+        ("order" = Option<String>, Query, description = "Sort order: asc or desc"),
+    ),
+    responses(
+        (status = 200, description = "Users fetched successfully", body = PaginatedResponse<UserSummary>),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Admin access required"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn get_all_users_summary(
     _auth: AdminUser,
     State(state): State<Arc<AppState>>,
@@ -44,6 +61,21 @@ pub async fn get_all_users_summary(
     ))
 }
 
+#[utoipa::path(
+    patch,
+    path = "/api/v1/admin/users/{user_id}/suspend",
+    tag = "Admin",
+    params(("user_id" = Uuid, Path, description = "User ID")),
+    request_body = SuspendUserRequest,
+    responses(
+        (status = 200, description = "User suspension updated", body = UserResponse),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Admin access required"),
+        (status = 404, description = "User not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn suspend_user(
     _auth: AdminUser,
     State(state): State<Arc<AppState>>,
@@ -57,6 +89,21 @@ pub async fn suspend_user(
     Ok((StatusCode::OK, Json(user.into())))
 }
 
+#[utoipa::path(
+    patch,
+    path = "/api/v1/admin/users/{user_id}/role",
+    tag = "Admin",
+    params(("user_id" = Uuid, Path, description = "User ID")),
+    request_body = UpdateUserRoleRequest,
+    responses(
+        (status = 200, description = "User role updated", body = UserResponse),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Admin access required"),
+        (status = 404, description = "User not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn update_role(
     _auth: AdminUser,
     State(state): State<Arc<AppState>>,
@@ -67,6 +114,18 @@ pub async fn update_role(
     Ok((StatusCode::OK, Json(user.into())))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/admin/stats",
+    tag = "Admin",
+    responses(
+        (status = 200, description = "System stats fetched", body = AdminStats),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "Admin access required"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn get_admin_stat(
     _auth: AdminUser,
     State(state): State<Arc<AppState>>,

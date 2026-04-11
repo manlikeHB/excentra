@@ -8,7 +8,7 @@ use rust_decimal::Decimal;
 use serde::Deserialize;
 use uuid::Uuid;
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
 pub struct PlaceOrderRequest {
     pub symbol: String,
     pub side: DBOrderSide,
@@ -17,7 +17,7 @@ pub struct PlaceOrderRequest {
     pub quantity: Decimal,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct PlaceOrderResponse {
     pub order_id: Uuid,
     pub status: DBOrderStatus,
@@ -26,7 +26,7 @@ pub struct PlaceOrderResponse {
     pub trades: Vec<TradeInfo>,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct TradeInfo {
     pub price: Decimal,
     pub quantity: Decimal,
@@ -94,7 +94,7 @@ impl From<OrderRequestValidationError> for AppError {
     }
 }
 
-#[derive(Debug, sqlx::FromRow, serde::Serialize)]
+#[derive(Debug, sqlx::FromRow, serde::Serialize, utoipa::ToSchema)]
 pub struct OrderResponse {
     pub id: Uuid,
     pub symbol: String,

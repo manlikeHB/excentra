@@ -10,7 +10,7 @@ use crate::{
     utils::query_builder::QueryOrder,
 };
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct TradeResponse {
     pub id: Uuid,
     pub symbol: String,
@@ -39,7 +39,7 @@ pub struct TradeParams {
     pub order: Option<QueryOrder>,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct UserTradeResponse {
     pub id: Uuid,
     pub symbol: String,

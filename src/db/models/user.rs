@@ -1,7 +1,17 @@
 use sqlx;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, sqlx::Type, serde::Serialize, serde::Deserialize, PartialEq, Eq, Copy)]
+#[derive(
+    Debug,
+    Clone,
+    sqlx::Type,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    Eq,
+    Copy,
+    utoipa::ToSchema,
+)]
 #[sqlx(type_name = "user_role", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 pub enum UserRole {

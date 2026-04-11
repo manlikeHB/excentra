@@ -1,6 +1,6 @@
 use crate::error::AppError;
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
 pub struct AddAssetRequest {
     pub symbol: String,
     pub name: String,

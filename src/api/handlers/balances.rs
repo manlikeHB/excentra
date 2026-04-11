@@ -17,6 +17,20 @@ use crate::{
     error::AppError,
 };
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/balances/deposit",
+    tag = "Balances",
+    request_body = BalanceRequest,
+    responses(
+        (status = 200, description = "Deposit successful", body = BalanceResponse),
+        (status = 400, description = "Invalid amount"),
+        (status = 401, description = "Not authenticated"),
+        (status = 422, description = "Asset not supported"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn deposit(
     auth: AuthUser,
     State(state): State<Arc<AppState>>,
@@ -34,6 +48,17 @@ pub async fn deposit(
     Ok((StatusCode::OK, Json(bal.into())))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/balances",
+    tag = "Balances",
+    responses(
+        (status = 200, description = "Balances fetched successfully", body = Vec<BalanceResponse>),
+        (status = 401, description = "Not authenticated"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn get_balances(
     auth: AuthUser,
     State(state): State<Arc<AppState>>,
@@ -51,6 +76,20 @@ pub async fn get_balances(
     Ok((StatusCode::OK, Json(balances)))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/balances/withdraw",
+    tag = "Balances",
+    request_body = BalanceRequest,
+    responses(
+        (status = 200, description = "Withdrawal successful", body = BalanceResponse),
+        (status = 400, description = "Invalid amount"),
+        (status = 401, description = "Not authenticated"),
+        (status = 422, description = "Asset not supported or insufficient balance"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn withdraw(
     auth: AuthUser,
     State(state): State<Arc<AppState>>,
@@ -68,6 +107,19 @@ pub async fn withdraw(
     Ok((StatusCode::OK, Json(bal.into())))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/balances/{asset}",
+    tag = "Balances",
+    params(("asset" = String, Path, description = "Asset symbol e.g BTC")),
+    responses(
+        (status = 200, description = "Balance fetched successfully", body = BalanceResponse),
+        (status = 401, description = "Not authenticated"),
+        (status = 422, description = "Asset not supported"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn get_balance(
     auth: AuthUser,
     State(state): State<Arc<AppState>>,

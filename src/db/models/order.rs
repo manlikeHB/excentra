@@ -4,7 +4,9 @@ use uuid::Uuid;
 
 use crate::engine::models::order::{Order, OrderSide, OrderStatus, OrderType};
 
-#[derive(Debug, Clone, Copy, sqlx::Type, serde::Deserialize, serde::Serialize)]
+#[derive(
+    Debug, Clone, Copy, sqlx::Type, serde::Deserialize, serde::Serialize, utoipa::ToSchema,
+)]
 #[sqlx(type_name = "order_side", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 pub enum DBOrderSide {
@@ -12,7 +14,17 @@ pub enum DBOrderSide {
     Sell,
 }
 
-#[derive(Debug, Clone, Copy, sqlx::Type, serde::Deserialize, serde::Serialize, PartialEq, Eq)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    sqlx::Type,
+    serde::Deserialize,
+    serde::Serialize,
+    PartialEq,
+    Eq,
+    utoipa::ToSchema,
+)]
 #[sqlx(type_name = "order_type", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 pub enum DBOrderType {
@@ -20,7 +32,9 @@ pub enum DBOrderType {
     Limit,
 }
 
-#[derive(Debug, Clone, Copy, sqlx::Type, serde::Deserialize, serde::Serialize)]
+#[derive(
+    Debug, Clone, Copy, sqlx::Type, serde::Deserialize, serde::Serialize, utoipa::ToSchema,
+)]
 #[sqlx(type_name = "order_status", rename_all = "lowercase")]
 pub enum DBOrderStatus {
     Open,

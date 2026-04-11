@@ -4,7 +4,7 @@ use crate::{db::models::user::UserRole, utils::query_builder::QueryOrder};
 use rust_decimal::Decimal;
 use serde::Deserialize;
 
-#[derive(Debug, serde::Deserialize, sqlx::FromRow, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, sqlx::FromRow, serde::Serialize, utoipa::ToSchema)]
 pub struct UserSummary {
     pub id: Uuid,
     pub email: String,
@@ -13,10 +13,11 @@ pub struct UserSummary {
     pub is_suspended: bool,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
+    #[schema(value_type = Vec<BalanceSummary>)]
     pub balances: sqlx::types::Json<Vec<BalanceSummary>>,
 }
 
-#[derive(Debug, serde::Deserialize, sqlx::Type, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, sqlx::Type, serde::Serialize, utoipa::ToSchema)]
 pub struct BalanceSummary {
     pub asset: String,
     pub available: Decimal,
@@ -47,17 +48,17 @@ where
     }
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
 pub struct SuspendUserRequest {
     pub suspended: bool,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
 pub struct UpdateUserRoleRequest {
     pub role: UserRole,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct AdminStats {
     pub total_users: i64,
     pub total_trades: i64,
@@ -67,7 +68,7 @@ pub struct AdminStats {
     pub volume_24h: Vec<PairVolume>,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct PairVolume {
     pub symbol: String,
     pub volume: Decimal,

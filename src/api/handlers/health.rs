@@ -3,6 +3,15 @@ use axum::{Json, extract::State, http::StatusCode};
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
+#[utoipa::path(
+    get,
+    path = "/health",
+    tag = "system",
+    responses(
+        (status = 200, description = "System is healthy", body = HealthResponse),
+        (status = 503, description = "System degraded"),
+    )
+)]
 pub async fn health(State(state): State<Arc<AppState>>) -> (StatusCode, Json<HealthResponse>) {
     let db = sqlx::query("SELECT 1").execute(&state.pool).await.is_ok();
 
