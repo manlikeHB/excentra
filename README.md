@@ -86,7 +86,7 @@ You should see:
 INFO excentra: Server listening port=3000
 ```
 
-### 4. Explore the API
+**4. Explore the API
 
 Interactive API documentation is available at `http://localhost:3000/docs`. Explore all endpoints, view request and response schemas, and make live requests directly from the browser. Click **Authorize** and paste your JWT token to test protected endpoints.
 
