@@ -181,7 +181,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         PriceSeedService::new(pool.clone(), exchange.clone(), reqwest::Client::new());
     price_seed_service.seed_prices().await?;
 
-    let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", config.port)).await?;
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.port)).await?;
     tracing::info!(port = %config.port, "Server listening");
     axum::serve(listener, app).await?;
 
