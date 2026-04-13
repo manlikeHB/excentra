@@ -13,6 +13,7 @@ use excentra::{
             health::health,
             orderbook::get_orderbook,
             orders::{cancel_order, get_order_by_id, get_orders, place_order},
+            password_reset::{request_password_reset, reset_password},
             ticker::{get_all_tickers, get_ticker},
             trades::{get_recent_trades_for_a_pair, get_trade_history},
             trading_pairs::{
@@ -29,9 +30,9 @@ use excentra::{
     engine::exchange::Exchange,
     services::{
         admin::AdminService, assets::AssetService, auth::AuthService, balances::BalanceService,
-        orderbook::OrderBookService, orders::OrderService, price_seed::PriceSeedService,
-        ticker::TickerService, trades::TradeService, trading_pair::TradingPairService,
-        users::UserService,
+        orderbook::OrderBookService, orders::OrderService, password_reset::PasswordResetService,
+        price_seed::PriceSeedService, ticker::TickerService, trades::TradeService,
+        trading_pair::TradingPairService, users::UserService,
     },
 };
 use sqlx::PgPool;
@@ -111,6 +112,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         base_url: config.base_url.to_owned(),
         balance_service: BalanceService::new(pool.clone()),
         admin_service: AdminService::new(pool.clone()),
+        password_reset_service: PasswordResetService::new(
+            pool.clone(),
+            &config.smtp_host,
+            config.smtp_port,
+            &config.smtp_from,
+            &config.frontend_url,
+        ),
     });
 
     // Router & routes
@@ -118,7 +126,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/register", post(register_user))
         .route("/login", post(login_user))
         .route("/refresh", post(refresh_token))
-        .route("/logout", post(logout));
+        .route("/logout", post(logout))
+        .route("/forgot-password", post(request_password_reset))
+        .route("/reset-password", post(reset_password));
 
     let order_router = Router::new()
         .route("/", post(place_order).get(get_orders))

@@ -126,3 +126,9 @@ impl From<AssetSymbolError> for AppError {
         AppError::BadRequest(value.into())
     }
 }
+
+impl From<lettre::error::Error> for AppError {
+    fn from(_: lettre::error::Error) -> Self {
+        AppError::InternalError("Failed to build email".to_string())
+    }
+}

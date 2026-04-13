@@ -38,6 +38,8 @@ use utoipa::OpenApi;
         crate::api::handlers::trading_pairs::get_trading_pair,
         crate::api::handlers::users::get_user,
         crate::api::handlers::users::update_user,
+        crate::api::handlers::password_reset::request_password_reset,
+        crate::api::handlers::password_reset::reset_password,
     ),
     components(
         schemas(
@@ -72,6 +74,8 @@ use utoipa::OpenApi;
             crate::api::types::trading_pairs::AddTradingPairRequest,
             crate::api::types::users::UserResponse,
             crate::api::types::users::UpdateUserRequest,
+            crate::api::types::password_reset::ForgotPasswordRequest,
+            crate::api::types::password_reset::ResetPasswordRequest,
         )
     ),
     tags(

@@ -4,6 +4,7 @@ pub mod auth;
 pub mod balances;
 pub mod orderbook;
 pub mod orders;
+pub mod password_reset;
 pub mod price_seed;
 pub mod ticker;
 pub mod trades;

@@ -4,6 +4,10 @@ pub struct Config {
     pub api_version: String,
     pub port: String,
     pub base_url: String,
+    pub smtp_host: String,
+    pub smtp_port: u16,
+    pub smtp_from: String,
+    pub frontend_url: String,
 }
 
 impl Config {
@@ -15,12 +19,24 @@ impl Config {
         let port = std::env::var("PORT").expect("PORT should be set");
         let base_url = format!("/api/{}", api_version);
 
+        let smtp_host = std::env::var("SMTP_HOST").expect("SMTP_HOST should be set");
+        let smtp_port = std::env::var("SMTP_PORT")
+            .expect("SMTP_PORT should be set")
+            .parse::<u16>()
+            .expect("SMTP_PORT must be a valid port number");
+        let smtp_from = std::env::var("SMTP_FROM").expect("SMTP_FROM should be set");
+        let frontend_url = std::env::var("FRONTEND_URL").expect("FRONTEND_URL should be set");
+
         Config {
             database_url: db_url,
             jwt_secret,
             api_version,
             port,
             base_url,
+            smtp_host,
+            smtp_port,
+            smtp_from,
+            frontend_url,
         }
     }
 }

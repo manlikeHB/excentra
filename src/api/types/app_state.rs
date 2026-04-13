@@ -6,8 +6,9 @@ use std::{
 use crate::{
     services::{
         admin::AdminService, assets::AssetService, auth::AuthService, balances::BalanceService,
-        orderbook::OrderBookService, orders::OrderService, ticker::TickerService,
-        trades::TradeService, trading_pair::TradingPairService, users::UserService,
+        orderbook::OrderBookService, orders::OrderService, password_reset::PasswordResetService,
+        ticker::TickerService, trades::TradeService, trading_pair::TradingPairService,
+        users::UserService,
     },
     ws::messages::WsEvent,
 };
@@ -30,4 +31,5 @@ pub struct AppState {
     pub base_url: String,
     pub balance_service: BalanceService,
     pub admin_service: AdminService,
+    pub password_reset_service: PasswordResetService,
 }
