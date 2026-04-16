@@ -71,6 +71,7 @@ impl PasswordResetService {
                 &self.smtp_config.frontend_url, token
             ))?;
 
+        // TODO: replace with TLS transport + auth credentials for production
         let mailer = SmtpTransport::builder_dangerous(&self.smtp_config.host)
             .port(self.smtp_config.port)
             .build();

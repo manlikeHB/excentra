@@ -25,6 +25,10 @@ services:
       API_VERSION: ${API_VERSION}
       PORT: 3000
       RUST_LOG: ${RUST_LOG}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_FROM: ${SMTP_FROM}
+      FRONTEND_URL: ${FRONTEND_URL}
     depends_on:
       db:
         condition: service_healthy

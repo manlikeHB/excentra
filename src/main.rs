@@ -187,6 +187,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/health", get(health))
         .route("/ws", get(ws_handler))
         .with_state(shared_state.clone())
+        // TODO: restrict CORS origins to known frontend URLs in production (currently permissive)
         .layer(TraceLayer::new_for_http());
 
     let ticker_state = shared_state.clone();
