@@ -8,6 +8,18 @@ use axum_extra::extract::{CookieJar, cookie::Cookie};
 use std::sync::Arc;
 use validator::Validate;
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/auth/register",
+    tag = "Auth",
+    request_body = RegisterRequest,
+    responses(
+        (status = 201, description = "User registered successfully", body = LoginResponse),
+        (status = 400, description = "Invalid email or password format"),
+        (status = 409, description = "Email already registered"),
+        (status = 500, description = "Internal server error"),
+    )
+)]
 pub async fn register_user(
     jar: CookieJar,
     State(state): State<Arc<AppState>>,
@@ -26,6 +38,18 @@ pub async fn register_user(
     ))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/auth/login",
+    tag = "Auth",
+    request_body = LoginRequest,
+    responses(
+        (status = 200, description = "Login successful", body = LoginResponse),
+        (status = 400, description = "Invalid request body"),
+        (status = 401, description = "Invalid email or password"),
+        (status = 500, description = "Internal server error"),
+    )
+)]
 pub async fn login_user(
     jar: CookieJar,
     State(state): State<Arc<AppState>>,
@@ -44,6 +68,16 @@ pub async fn login_user(
     ))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/auth/refresh",
+    tag = "Auth",
+    responses(
+        (status = 200, description = "Token refreshed successfully", body = LoginResponse),
+        (status = 401, description = "Missing or expired refresh token"),
+        (status = 500, description = "Internal server error"),
+    )
+)]
 pub async fn refresh_token(
     jar: CookieJar,
     State(state): State<Arc<AppState>>,
@@ -58,6 +92,16 @@ pub async fn refresh_token(
     ))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/v1/auth/logout",
+    tag = "Auth",
+    responses(
+        (status = 204, description = "Logged out successfully"),
+        (status = 401, description = "Missing or expired refresh token"),
+        (status = 500, description = "Internal server error"),
+    )
+)]
 pub async fn logout(
     jar: CookieJar,
     State(state): State<Arc<AppState>>,

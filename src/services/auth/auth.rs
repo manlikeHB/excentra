@@ -1,8 +1,7 @@
 use crate::db::queries as db_queries;
 use crate::error::AppError;
-use crate::services::auth::utils::{
-    create_token, generate_refresh_token, hash_password, hash_refresh_token, verify_password,
-};
+use crate::services::auth::utils::{create_token, hash_password, verify_password};
+use crate::utils::random_token;
 use sqlx::PgPool;
 
 pub struct AuthService {
@@ -24,8 +23,8 @@ impl AuthService {
         let user = db_queries::create_user(&self.pool, email, &password_hash).await?;
 
         let access_token = create_token(user.id, user.role, &self.jwt_secret)?;
-        let refresh_token = generate_refresh_token();
-        let token_hash = hash_refresh_token(&refresh_token);
+        let refresh_token = random_token::generate_token();
+        let token_hash = random_token::hash_token(&refresh_token);
         let expires_at = chrono::Utc::now() + chrono::Duration::days(7);
         db_queries::create_refresh_token(&self.pool, user.id, &token_hash, expires_at).await?;
 
@@ -54,8 +53,8 @@ impl AuthService {
         };
 
         let access_token = create_token(user.id, user.role, &self.jwt_secret)?;
-        let refresh_token = generate_refresh_token();
-        let token_hash = hash_refresh_token(&refresh_token);
+        let refresh_token = random_token::generate_token();
+        let token_hash = random_token::hash_token(&refresh_token);
         let expires_at = chrono::Utc::now() + chrono::Duration::days(7);
         db_queries::create_refresh_token(&self.pool, user.id, &token_hash, expires_at).await?;
 
@@ -65,7 +64,7 @@ impl AuthService {
     }
 
     pub async fn refresh_token(&self, refresh_token: &str) -> Result<(String, String), AppError> {
-        let token_hash = hash_refresh_token(refresh_token);
+        let token_hash = random_token::hash_token(refresh_token);
 
         let db_refresh_token = match db_queries::find_refresh_token(&self.pool, &token_hash).await?
         {
@@ -94,8 +93,8 @@ impl AuthService {
         };
 
         let access_token = create_token(user.id, user.role, &self.jwt_secret)?;
-        let refresh_token = generate_refresh_token();
-        let token_hash = hash_refresh_token(&refresh_token);
+        let refresh_token = random_token::generate_token();
+        let token_hash = random_token::hash_token(&refresh_token);
         let expires_at = chrono::Utc::now() + chrono::Duration::days(7);
 
         tracing::info!(user_id = %user_id, "Token refreshed");
@@ -110,7 +109,7 @@ impl AuthService {
     }
 
     pub async fn logout(&self, refresh_token: &str) -> Result<(), AppError> {
-        let token_hash = hash_refresh_token(refresh_token);
+        let token_hash = random_token::hash_token(refresh_token);
 
         let db_refresh_token = match db_queries::find_refresh_token(&self.pool, &token_hash).await?
         {

@@ -2,7 +2,7 @@ use rust_decimal::Decimal;
 
 use crate::{db::models::balance::DBBalance, error::AppError};
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
 pub struct BalanceRequest {
     pub amount: Decimal,
     pub asset: String,
@@ -19,7 +19,7 @@ impl BalanceRequest {
     }
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct BalanceResponse {
     pub asset: String,
     pub available: Decimal,

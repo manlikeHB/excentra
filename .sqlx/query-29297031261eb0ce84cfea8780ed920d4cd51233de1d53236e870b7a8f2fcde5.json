@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id FROM orders\n                WHERE user_id = $1\n                AND pair_id = $2\n                AND side = 'sell'\n                AND status IN ('open', 'partially_filled')\n                AND price <= $3\n                LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Numeric"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "29297031261eb0ce84cfea8780ed920d4cd51233de1d53236e870b7a8f2fcde5"
+}

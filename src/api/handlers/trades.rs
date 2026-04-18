@@ -19,6 +19,20 @@ use crate::{
     types::asset_symbol::AssetSymbol,
 };
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/trades/{symbol}",
+    tag = "Market Data",
+    params(
+        ("symbol" = String, Path, description = "Trading pair symbol e.g BTC/USDT"),
+        ("limit" = Option<u64>, Query, description = "Number of trades to return"),
+    ),
+    responses(
+        (status = 200, description = "Recent trades fetched successfully", body = Vec<TradeResponse>),
+        (status = 400, description = "Invalid symbol"),
+        (status = 500, description = "Internal server error"),
+    )
+)]
 pub async fn get_recent_trades_for_a_pair(
     State(state): State<Arc<AppState>>,
     Path(symbol): Path<String>,
@@ -37,6 +51,23 @@ pub async fn get_recent_trades_for_a_pair(
     Ok((StatusCode::OK, Json(trades)))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/trades/me",
+    tag = "Trades",
+    params(
+        ("pair" = Option<String>, Query, description = "Filter by trading pair e.g BTC/USDT"),
+        ("page" = Option<u64>, Query, description = "Page number"),
+        ("limit" = Option<u64>, Query, description = "Items per page"),
+        ("order" = Option<String>, Query, description = "Sort order: asc or desc"),
+    ),
+    responses(
+        (status = 200, description = "Trade history fetched successfully", body = PaginatedResponse<UserTradeResponse>),
+        (status = 401, description = "Not authenticated"),
+        (status = 500, description = "Internal server error"),
+    ),
+    security(("bearer_auth" = []))
+)]
 pub async fn get_trade_history(
     auth: AuthUser,
     State(state): State<Arc<AppState>>,

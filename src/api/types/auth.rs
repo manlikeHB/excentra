@@ -1,6 +1,6 @@
 use validator::Validate;
 
-#[derive(serde::Deserialize, Validate)]
+#[derive(serde::Deserialize, Validate, utoipa::ToSchema)]
 pub struct RegisterRequest {
     #[validate(email(message = "Invalid email address"))]
     pub email: String,
@@ -8,7 +8,7 @@ pub struct RegisterRequest {
     pub password: String,
 }
 
-#[derive(serde::Deserialize, Validate)]
+#[derive(serde::Deserialize, Validate, utoipa::ToSchema)]
 pub struct LoginRequest {
     #[validate(email(message = "Invalid email address"))]
     pub email: String,
@@ -16,7 +16,7 @@ pub struct LoginRequest {
     pub password: String,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, utoipa::ToSchema)]
 pub struct LoginResponse {
     pub access_token: String,
 }

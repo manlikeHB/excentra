@@ -15,6 +15,20 @@ use crate::{
     types::asset_symbol::AssetSymbol,
 };
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/orderbook/{symbol}",
+    tag = "Market Data",
+    params(
+        ("symbol" = String, Path, description = "Trading pair symbol e.g BTC/USDT"),
+        ("levels" = Option<usize>, Query, description = "Number of price levels to return (default: 20)"),
+    ),
+    responses(
+        (status = 200, description = "Order book snapshot", body = OrderBookResponse),
+        (status = 400, description = "Invalid symbol"),
+        (status = 500, description = "Internal server error"),
+    )
+)]
 pub async fn get_orderbook(
     State(state): State<Arc<AppState>>,
     Path(symbol): Path<String>,
@@ -35,8 +49,8 @@ pub async fn get_orderbook(
 
     let orderbook_res = OrderBookResponse {
         symbol: asset_symbol.as_str().to_string(),
-        bids: snapshot.bids(),
-        asks: snapshot.asks(),
+        bids: snapshot.bids().into_iter().map(|pl| pl.into()).collect(),
+        asks: snapshot.asks().into_iter().map(|pl| pl.into()).collect(),
     };
 
     Ok((StatusCode::OK, Json(orderbook_res)))

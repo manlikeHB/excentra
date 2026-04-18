@@ -7,7 +7,7 @@ use crate::{
 };
 use validator::Validate;
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct UserResponse {
     pub id: Uuid,
     pub username: Option<String>,
@@ -32,7 +32,7 @@ impl From<User> for UserResponse {
     }
 }
 
-#[derive(Debug, serde::Deserialize, Validate)]
+#[derive(Debug, serde::Deserialize, Validate, utoipa::ToSchema)]
 pub struct UpdateUserRequest {
     pub username: Option<String>,
     pub current_password: Option<String>,

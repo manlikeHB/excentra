@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::db::models::trading_pairs::DBTradingPair;
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct TradingPairsResponse {
     pub id: Uuid,
     pub base_asset: String,
@@ -26,7 +26,7 @@ impl From<DBTradingPair> for TradingPairsResponse {
     }
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
 pub struct AddTradingPairRequest {
     pub base_asset: String,
     pub quote_asset: String,

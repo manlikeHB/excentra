@@ -1,0 +1,154 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO orders \n    (id, user_id, pair_id, side, order_type, price, quantity, remaining_quantity, status) \n    VALUES ($9, $1, $2, $3::order_side, $4::order_type, $5, $6, $7, $8::order_status) \n    RETURNING \n    id, \n    user_id, pair_id, \n    side as \"side: DBOrderSide\", \n    order_type as \"order_type: DBOrderType\", \n    price, quantity, \n    remaining_quantity, \n    status as \"status: DBOrderStatus\", \n    created_at, \n    updated_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "pair_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "side: DBOrderSide",
+        "type_info": {
+          "Custom": {
+            "name": "order_side",
+            "kind": {
+              "Enum": [
+                "buy",
+                "sell"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "order_type: DBOrderType",
+        "type_info": {
+          "Custom": {
+            "name": "order_type",
+            "kind": {
+              "Enum": [
+                "limit",
+                "market"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "price",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 6,
+        "name": "quantity",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 7,
+        "name": "remaining_quantity",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 8,
+        "name": "status: DBOrderStatus",
+        "type_info": {
+          "Custom": {
+            "name": "order_status",
+            "kind": {
+              "Enum": [
+                "open",
+                "partially_filled",
+                "filled",
+                "cancelled"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        {
+          "Custom": {
+            "name": "order_side",
+            "kind": {
+              "Enum": [
+                "buy",
+                "sell"
+              ]
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "order_type",
+            "kind": {
+              "Enum": [
+                "limit",
+                "market"
+              ]
+            }
+          }
+        },
+        "Numeric",
+        "Numeric",
+        "Numeric",
+        {
+          "Custom": {
+            "name": "order_status",
+            "kind": {
+              "Enum": [
+                "open",
+                "partially_filled",
+                "filled",
+                "cancelled"
+              ]
+            }
+          }
+        },
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "eea73253e0c2eb4962f71e7a42f385c9c9d52f1a0125997e4ffb8e5baf0c3c69"
+}

@@ -5,6 +5,7 @@ pub mod balances;
 pub mod health;
 pub mod orderbook;
 pub mod orders;
+pub mod password_reset;
 pub mod ticker;
 pub mod trades;
 pub mod trading_pairs;

@@ -1,18 +1,19 @@
 use axum::{
-    Router,
+    Json, Router,
     routing::{delete, get, patch, post},
 };
 use dotenvy::dotenv;
 use excentra::{
     api::{
         handlers::{
-            admin::{get_all_users_summary, suspend_user, update_role},
+            admin::{get_admin_stat, get_all_users_summary, suspend_user, update_role},
             asset::{add_asset, get_all_assets},
             auth::{login_user, logout, refresh_token, register_user},
             balances::{deposit, get_balance, get_balances, withdraw},
             health::health,
             orderbook::get_orderbook,
             orders::{cancel_order, get_order_by_id, get_orders, place_order},
+            password_reset::{request_password_reset, reset_password},
             ticker::{get_all_tickers, get_ticker},
             trades::{get_recent_trades_for_a_pair, get_trade_history},
             trading_pairs::{
@@ -25,12 +26,13 @@ use excentra::{
     },
     config::Config,
     db::queries as db_queries,
+    doc::ApiDoc,
     engine::exchange::Exchange,
     services::{
         admin::AdminService, assets::AssetService, auth::AuthService, balances::BalanceService,
-        orderbook::OrderBookService, orders::OrderService, price_seed::PriceSeedService,
-        ticker::TickerService, trades::TradeService, trading_pair::TradingPairService,
-        users::UserService,
+        orderbook::OrderBookService, orders::OrderService, password_reset::PasswordResetService,
+        price_seed::PriceSeedService, ticker::TickerService, trades::TradeService,
+        trading_pair::TradingPairService, users::UserService,
     },
 };
 use sqlx::PgPool;
@@ -41,6 +43,8 @@ use std::{
 use tokio::sync::{Mutex, broadcast};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{self, EnvFilter};
+use utoipa::OpenApi;
+use utoipa_scalar::{Scalar, Servable};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -58,6 +62,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // init db pool
     let pool = PgPool::connect(&config.database_url).await?;
+    // Run any pending migrations on startup.
+    // safe to run on every startup, including fresh and existing databases.
+    sqlx::migrate!().run(&pool).await?;
 
     // load trading pairs and resting orders into exchange
     let pairs = db_queries::get_active_trading_pairs(&pool).await?;
@@ -105,6 +112,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         base_url: config.base_url.to_owned(),
         balance_service: BalanceService::new(pool.clone()),
         admin_service: AdminService::new(pool.clone()),
+        password_reset_service: PasswordResetService::new(
+            pool.clone(),
+            &config.smtp_host,
+            config.smtp_port,
+            &config.smtp_from,
+            &config.frontend_url,
+        ),
     });
 
     // Router & routes
@@ -112,7 +126,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/register", post(register_user))
         .route("/login", post(login_user))
         .route("/refresh", post(refresh_token))
-        .route("/logout", post(logout));
+        .route("/logout", post(logout))
+        .route("/forgot-password", post(request_password_reset))
+        .route("/reset-password", post(reset_password));
 
     let order_router = Router::new()
         .route("/", post(place_order).get(get_orders))
@@ -146,7 +162,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let admin_router = Router::new()
         .route("/users", get(get_all_users_summary))
         .route("/users/{user_id}/suspend", patch(suspend_user))
-        .route("/users/{user_id}/role", patch(update_role));
+        .route("/users/{user_id}/role", patch(update_role))
+        .route("/stats", get(get_admin_stat));
 
     let api_routes = Router::new()
         .nest("/auth", auth_router)
@@ -161,10 +178,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/admin", admin_router);
 
     let app = Router::new()
+        .merge(Scalar::with_url("/docs", ApiDoc::openapi()))
+        .route(
+            "/api-docs/openapi.json",
+            get(|| async { Json(ApiDoc::openapi()) }),
+        )
         .nest(&config.base_url, api_routes)
         .route("/health", get(health))
         .route("/ws", get(ws_handler))
         .with_state(shared_state.clone())
+        // TODO: restrict CORS origins to known frontend URLs in production (currently permissive)
         .layer(TraceLayer::new_for_http());
 
     let ticker_state = shared_state.clone();
@@ -177,7 +200,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         PriceSeedService::new(pool.clone(), exchange.clone(), reqwest::Client::new());
     price_seed_service.seed_prices().await?;
 
-    let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", config.port)).await?;
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.port)).await?;
     tracing::info!(port = %config.port, "Server listening");
     axum::serve(listener, app).await?;
 
