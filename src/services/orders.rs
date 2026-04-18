@@ -166,6 +166,7 @@ impl OrderService {
         match db_queries::find_by_symbol(&self.pool, symbol).await? {
             Some(pair) => Ok(pair),
             None => {
+                tracing::warn!(pair = %symbol, "Unsupported trading pair");
                 return Err(AppError::Unprocessable(
                     "Invalid or unsupported trading pair".to_string(),
                 ));
@@ -244,6 +245,7 @@ impl OrderService {
         match db_queries::get_balance(&self.pool, user_id, asset).await? {
             Some(bal) => {
                 if bal.available < amount {
+                    tracing::warn!(asset = %bal.asset, "Insufficient available for");
                     return Err(AppError::Unprocessable(format!(
                         "Insufficient available {} balance",
                         bal.asset
@@ -256,6 +258,7 @@ impl OrderService {
                 }
             }
             None => {
+                tracing::warn!(asset = %asset, "Insufficient available for");
                 return Err(AppError::Unprocessable(format!(
                     "Insufficient available {} balance",
                     asset
@@ -332,6 +335,7 @@ impl OrderService {
                 symbol: symbol.as_str().to_string(),
                 price: trade.price(),
                 quantity: trade.quantity(),
+                side: (*order.side()).into(),
                 created_at: trade.created_at(),
             };
             let _ = self.ws_sender.send(ws_event);

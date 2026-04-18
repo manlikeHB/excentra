@@ -1,3 +1,4 @@
+use axum::http::{HeaderValue, Method, header};
 use axum::{
     Json, Router,
     routing::{delete, get, patch, post},
@@ -41,6 +42,7 @@ use std::{
     time::Instant,
 };
 use tokio::sync::{Mutex, broadcast};
+use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{self, EnvFilter};
 use utoipa::OpenApi;
@@ -177,6 +179,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/users", user_router)
         .nest("/admin", admin_router);
 
+    let cors = CorsLayer::new()
+        .allow_origin("http://localhost:3001".parse::<HeaderValue>().unwrap())
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
+        .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION])
+        .allow_credentials(true);
+
     let app = Router::new()
         .merge(Scalar::with_url("/docs", ApiDoc::openapi()))
         .route(
@@ -188,7 +202,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/ws", get(ws_handler))
         .with_state(shared_state.clone())
         // TODO: restrict CORS origins to known frontend URLs in production (currently permissive)
-        .layer(TraceLayer::new_for_http());
+        .layer(TraceLayer::new_for_http())
+        .layer(cors);
 
     let ticker_state = shared_state.clone();
     tokio::spawn(async move {
