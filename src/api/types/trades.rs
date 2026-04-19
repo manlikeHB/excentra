@@ -7,6 +7,7 @@ use crate::{
         order::DBOrderSide,
         trade::{DBTrade, TradeWithSymbolAndSide},
     },
+    utils::deserializer::deserialize_order,
     utils::query_builder::QueryOrder,
 };
 
@@ -36,6 +37,7 @@ pub struct TradeParams {
     pub limit: Option<u64>,
     pub pair: Option<String>,
     pub page: Option<u64>,
+    #[serde(default, deserialize_with = "deserialize_order")]
     pub order: Option<QueryOrder>,
 }
 

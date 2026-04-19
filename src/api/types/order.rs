@@ -1,6 +1,7 @@
 use crate::{
     db::models::order::{DBOrder, DBOrderSide, DBOrderStatus, DBOrderType, OrderWithSymbol},
     error::AppError,
+    utils::deserializer::deserialize_order,
     utils::query_builder::QueryOrder,
 };
 use chrono::{DateTime, Utc};
@@ -76,18 +77,23 @@ impl From<OrderRequestValidationError> for AppError {
     fn from(value: OrderRequestValidationError) -> Self {
         match value {
             OrderRequestValidationError::InvalidLimitOrder => {
+                tracing::warn!("No price in limit order");
                 AppError::BadRequest("A limit order should have a price".to_string())
             }
             OrderRequestValidationError::InvalidMarketOrder => {
+                tracing::warn!("Price added to market order");
                 AppError::BadRequest("A market order does not need a price".to_string())
             }
             OrderRequestValidationError::InvalidPrice => {
+                tracing::warn!("Price is or less than zero");
                 AppError::BadRequest("Price is or less than zero".to_string())
             }
             OrderRequestValidationError::InvalidQuantity => {
+                tracing::warn!("Quantity is or less than zero");
                 AppError::BadRequest("Quantity is or less than zero".to_string())
             }
             OrderRequestValidationError::InvalidSymbol => {
+                tracing::warn!("Invalid pair symbol used");
                 AppError::BadRequest("Symbol should contain '/' e.g 'BTC/USDT'".to_string())
             }
         }
@@ -149,6 +155,7 @@ pub struct GetOrdersParams {
     pub pair: Option<String>,
     pub page: Option<u64>,
     pub limit: Option<u64>,
+    #[serde(default, deserialize_with = "deserialize_order")]
     pub order: Option<QueryOrder>,
 }
 

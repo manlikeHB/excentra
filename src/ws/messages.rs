@@ -1,3 +1,4 @@
+use crate::db::models::order::DBOrderSide;
 use crate::{
     db::models::order::DBOrderStatus, engine::models::orderbook::OrderBookSnapshot,
     types::asset_symbol::AssetSymbol,
@@ -35,6 +36,7 @@ pub enum WsEvent {
         symbol: String,
         price: Decimal,
         quantity: Decimal,
+        side: DBOrderSide,
         created_at: DateTime<Utc>,
     },
     OrderStatusUpdate {
@@ -65,18 +67,19 @@ impl Channel {
     pub fn from_str(channel: &str) -> Result<Self, String> {
         let parts: Vec<&str> = channel.splitn(2, ":").collect();
         if parts.len() != 2 {
+            tracing::warn!(channel = %channel, "Invalid ws channel");
             return Err("Invalid ws channel e.g `trades:BTC-USDT`".to_string());
         }
 
         match parts[0] {
             "orderbook" => Ok(Channel::OrderBook(
-                AssetSymbol::from_path(parts[1])?.as_str().to_string(),
+                AssetSymbol::new(parts[1])?.as_str().to_string(),
             )),
             "trades" => Ok(Channel::Trades(
-                AssetSymbol::from_path(parts[1])?.as_str().to_string(),
+                AssetSymbol::new(parts[1])?.as_str().to_string(),
             )),
             "ticker" => Ok(Channel::Ticker(
-                AssetSymbol::from_path(parts[1])?.as_str().to_string(),
+                AssetSymbol::new(parts[1])?.as_str().to_string(),
             )),
             "orders" => {
                 let user_id = Uuid::parse_str(parts[1])

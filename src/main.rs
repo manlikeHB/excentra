@@ -1,3 +1,4 @@
+use axum::http::{HeaderValue, Method, header};
 use axum::{
     Json, Router,
     routing::{delete, get, patch, post},
@@ -41,6 +42,7 @@ use std::{
     time::Instant,
 };
 use tokio::sync::{Mutex, broadcast};
+use tower_http::cors::{CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{self, EnvFilter};
 use utoipa::OpenApi;
@@ -131,7 +133,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/reset-password", post(reset_password));
 
     let order_router = Router::new()
-        .route("/", post(place_order).get(get_orders))
+        .route("/", get(get_orders).post(place_order))
         .route("/{id}", delete(cancel_order).get(get_order_by_id));
 
     let balance_router = Router::new()
@@ -177,6 +179,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/users", user_router)
         .nest("/admin", admin_router);
 
+    let cors = CorsLayer::new()
+        .allow_origin(config.frontend_url.parse::<HeaderValue>().unwrap())
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
+        .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION])
+        .allow_credentials(true);
+
     let app = Router::new()
         .merge(Scalar::with_url("/docs", ApiDoc::openapi()))
         .route(
@@ -187,8 +201,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/health", get(health))
         .route("/ws", get(ws_handler))
         .with_state(shared_state.clone())
-        // TODO: restrict CORS origins to known frontend URLs in production (currently permissive)
-        .layer(TraceLayer::new_for_http());
+        .layer(TraceLayer::new_for_http())
+        .layer(cors);
 
     let ticker_state = shared_state.clone();
     tokio::spawn(async move {

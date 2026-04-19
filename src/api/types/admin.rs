@@ -1,8 +1,10 @@
 use uuid::Uuid;
 
-use crate::{db::models::user::UserRole, utils::query_builder::QueryOrder};
+use crate::{
+    db::models::user::UserRole, utils::deserializer::deserialize_order,
+    utils::query_builder::QueryOrder,
+};
 use rust_decimal::Decimal;
-use serde::Deserialize;
 
 #[derive(Debug, serde::Deserialize, sqlx::FromRow, serde::Serialize, utoipa::ToSchema)]
 pub struct UserSummary {
@@ -30,22 +32,6 @@ pub struct UserSummaryParam {
     pub limit: Option<u64>,
     #[serde(default, deserialize_with = "deserialize_order")]
     pub order: Option<QueryOrder>,
-}
-
-pub fn deserialize_order<'de, D>(deserializer: D) -> Result<Option<QueryOrder>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let s = Option::<String>::deserialize(deserializer)?;
-    match s.as_deref().map(|s| s.to_lowercase()).as_deref() {
-        Some("asc") => Ok(Some(QueryOrder::ASC)),
-        Some("desc") => Ok(Some(QueryOrder::DESC)),
-        None => Ok(None),
-        Some(other) => Err(serde::de::Error::custom(format!(
-            "unknown status: {}",
-            other
-        ))),
-    }
 }
 
 #[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
