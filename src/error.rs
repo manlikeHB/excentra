@@ -5,7 +5,9 @@ use axum::{
 };
 use thiserror::Error;
 
-use crate::types::asset_symbol::AssetSymbolError;
+use crate::{
+    api::middleware::rate_limit::rate_limit::RateLimitError, types::asset_symbol::AssetSymbolError,
+};
 
 #[derive(Error, Debug)]
 pub enum EngineError {
@@ -35,6 +37,8 @@ pub enum AppError {
     Unprocessable(String),
     #[error("Forbidden: {0}")]
     Forbidden(String),
+    #[error("Too many request: {0}")]
+    TooManyRequest(String),
 }
 
 impl IntoResponse for AppError {
@@ -47,6 +51,7 @@ impl IntoResponse for AppError {
             AppError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
             AppError::Unprocessable(msg) => (StatusCode::UNPROCESSABLE_ENTITY, msg),
             AppError::Forbidden(msg) => (StatusCode::FORBIDDEN, msg),
+            AppError::TooManyRequest(msg) => (StatusCode::TOO_MANY_REQUESTS, msg),
         };
 
         (status_code, Json(serde_json::json!({"error": msg}))).into_response()
@@ -130,5 +135,16 @@ impl From<AssetSymbolError> for AppError {
 impl From<lettre::error::Error> for AppError {
     fn from(_: lettre::error::Error) -> Self {
         AppError::InternalError("Failed to build email".to_string())
+    }
+}
+
+impl From<RateLimitError> for AppError {
+    fn from(value: RateLimitError) -> Self {
+        match value {
+            RateLimitError::LimitExceeded(secs) => AppError::TooManyRequest(format!(
+                "rate limit exceeded, try again after: {} mins",
+                secs / 60
+            )),
+        }
     }
 }

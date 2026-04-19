@@ -1,14 +1,14 @@
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
 use axum::{
     Json,
-    extract::{Path, Query, State},
-    http::StatusCode,
+    extract::{ConnectInfo, Path, Query, State},
+    http::{HeaderMap, StatusCode},
 };
 
 use crate::{
     api::{
-        middleware::AuthUser,
+        middleware::{auth::AuthUser, rate_limit::policies},
         types::{
             AppState, PaginatedResponse,
             trades::{TradeParams, TradeResponse, UserTradeResponse},
@@ -17,6 +17,7 @@ use crate::{
     constants::DEFAULT_PAGE_SIZE,
     error::AppError,
     types::asset_symbol::AssetSymbol,
+    utils::ip_address::extract_ip,
 };
 
 #[utoipa::path(
@@ -34,10 +35,15 @@ use crate::{
     )
 )]
 pub async fn get_recent_trades_for_a_pair(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
     State(state): State<Arc<AppState>>,
     Path(symbol): Path<String>,
     Query(params): Query<TradeParams>,
+    headers: HeaderMap,
 ) -> Result<(StatusCode, Json<Vec<TradeResponse>>), AppError> {
+    let ip = extract_ip(&headers, addr);
+    state.rate_limiter.check(ip, &policies::GET_TRADES)?;
+
     let asset_symbol = AssetSymbol::from_path(&symbol)?;
     let limit = params.limit.unwrap_or(DEFAULT_PAGE_SIZE);
 

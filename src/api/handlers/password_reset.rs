@@ -1,13 +1,21 @@
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{
+    Json,
+    extract::{ConnectInfo, State},
+    http::{HeaderMap, StatusCode},
+};
 
 use crate::{
-    api::types::{
-        AppState,
-        password_reset::{ForgotPasswordRequest, ResetPasswordRequest},
+    api::{
+        middleware::rate_limit::policies,
+        types::{
+            AppState,
+            password_reset::{ForgotPasswordRequest, ResetPasswordRequest},
+        },
     },
     error::AppError,
+    utils::ip_address::extract_ip,
 };
 
 #[utoipa::path(
@@ -22,9 +30,14 @@ use crate::{
     )
 )]
 pub async fn request_password_reset(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
     State(state): State<Arc<AppState>>,
     Json(body): Json<ForgotPasswordRequest>,
 ) -> Result<StatusCode, AppError> {
+    let ip = extract_ip(&headers, addr);
+    state.rate_limiter.check(ip, &policies::FORGOT_PASSWORD)?;
+
     state
         .password_reset_service
         .request_reset(&body.email)
@@ -44,9 +57,14 @@ pub async fn request_password_reset(
     )
 )]
 pub async fn reset_password(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
     State(state): State<Arc<AppState>>,
     Json(body): Json<ResetPasswordRequest>,
 ) -> Result<StatusCode, AppError> {
+    let ip = extract_ip(&headers, addr);
+    state.rate_limiter.check(ip, &policies::RESET_PASSWORD)?;
+
     state
         .password_reset_service
         .reset_password(&body.token, &body.new_password)

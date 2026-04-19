@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::{
     api::{
-        middleware::AdminUser,
+        middleware::auth::AdminUser,
         types::{
             AppState, PaginatedResponse,
             admin::{

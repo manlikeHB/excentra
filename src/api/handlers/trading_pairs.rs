@@ -8,7 +8,7 @@ use axum::{
 
 use crate::{
     api::{
-        middleware::AdminUser,
+        middleware::auth::AdminUser,
         types::{
             AppState,
             trading_pairs::{AddTradingPairRequest, GetPairParams, TradingPairsResponse},

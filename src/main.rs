@@ -4,6 +4,7 @@ use axum::{
     routing::{delete, get, patch, post},
 };
 use dotenvy::dotenv;
+use excentra::api::middleware::rate_limit::RateLimiter;
 use excentra::{
     api::{
         handlers::{
@@ -37,12 +38,13 @@ use excentra::{
     },
 };
 use sqlx::PgPool;
+use std::net::SocketAddr;
 use std::{
     sync::{Arc, atomic::AtomicU64},
     time::Instant,
 };
 use tokio::sync::{Mutex, broadcast};
-use tower_http::cors::{CorsLayer};
+use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{self, EnvFilter};
 use utoipa::OpenApi;
@@ -121,6 +123,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             &config.smtp_from,
             &config.frontend_url,
         ),
+        rate_limiter: Arc::new(RateLimiter::new()),
     });
 
     // Router & routes
@@ -216,7 +219,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.port)).await?;
     tracing::info!(port = %config.port, "Server listening");
-    axum::serve(listener, app).await?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await?;
 
     Ok(())
 }

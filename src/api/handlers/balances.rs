@@ -8,7 +8,7 @@ use axum::{
 
 use crate::{
     api::{
-        middleware::AuthUser,
+        middleware::{auth::AuthUser, rate_limit::policies},
         types::{
             AppState,
             balances::{BalanceRequest, BalanceResponse},
@@ -36,8 +36,11 @@ pub async fn deposit(
     State(state): State<Arc<AppState>>,
     Json(body): Json<BalanceRequest>,
 ) -> Result<(StatusCode, Json<BalanceResponse>), AppError> {
-    body.validate()?;
     let user_id = auth.0.user_id();
+    state
+        .rate_limiter
+        .check(user_id.to_string(), &policies::DEPOSIT)?;
+    body.validate()?;
     let asset = &body.asset.trim().to_uppercase();
 
     let bal = state
@@ -95,8 +98,12 @@ pub async fn withdraw(
     State(state): State<Arc<AppState>>,
     Json(body): Json<BalanceRequest>,
 ) -> Result<(StatusCode, Json<BalanceResponse>), AppError> {
-    body.validate()?;
     let user_id = auth.0.user_id();
+    state
+        .rate_limiter
+        .check(user_id.to_string(), &policies::WITHDRAW)?;
+
+    body.validate()?;
     let asset = &body.asset.trim().to_uppercase();
 
     let bal = state

@@ -4,7 +4,7 @@ use axum::{Json, extract::State, http::StatusCode};
 
 use crate::{
     api::{
-        middleware::AdminUser,
+        middleware::auth::AdminUser,
         types::{AppState, asset::AddAssetRequest},
     },
     db::models::assets::Asset,

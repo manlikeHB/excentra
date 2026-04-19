@@ -1,15 +1,19 @@
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
 use axum::{
     Json,
-    extract::{Path, State},
-    http::StatusCode,
+    extract::{ConnectInfo, Path, State},
+    http::{HeaderMap, StatusCode},
 };
 
 use crate::{
-    api::types::{AppState, ticker::TickerResponse},
+    api::{
+        middleware::rate_limit::policies,
+        types::{AppState, ticker::TickerResponse},
+    },
     error::AppError,
     types::asset_symbol::AssetSymbol,
+    utils::ip_address::extract_ip,
 };
 
 #[utoipa::path(
@@ -27,9 +31,14 @@ use crate::{
     )
 )]
 pub async fn get_ticker(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
     State(state): State<Arc<AppState>>,
     Path(symbol): Path<String>,
+    headers: HeaderMap,
 ) -> Result<(StatusCode, Json<TickerResponse>), AppError> {
+    let ip = extract_ip(&headers, addr);
+    state.rate_limiter.check(ip, &policies::GET_TICKER)?;
+
     let symbol = AssetSymbol::from_path(&symbol)?;
     let ticker = state.ticker_service.get_pair_ticker_stats(symbol).await?;
 

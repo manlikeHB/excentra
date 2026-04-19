@@ -4,6 +4,7 @@ use std::{
 };
 
 use crate::{
+    api::middleware::rate_limit::RateLimiter,
     services::{
         admin::AdminService, assets::AssetService, auth::AuthService, balances::BalanceService,
         orderbook::OrderBookService, orders::OrderService, password_reset::PasswordResetService,
@@ -32,4 +33,5 @@ pub struct AppState {
     pub balance_service: BalanceService,
     pub admin_service: AdminService,
     pub password_reset_service: PasswordResetService,
+    pub rate_limiter: Arc<RateLimiter>,
 }

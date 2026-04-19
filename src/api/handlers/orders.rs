@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::{
     api::{
-        middleware::AuthUser,
+        middleware::{auth::AuthUser, rate_limit::policies},
         types::{
             AppState, PaginatedResponse,
             order::{GetOrdersParams, OrderResponse, PlaceOrderRequest, PlaceOrderResponse},
@@ -38,13 +38,14 @@ pub async fn place_order(
     State(state): State<Arc<AppState>>,
     Json(body): Json<PlaceOrderRequest>,
 ) -> Result<(StatusCode, Json<PlaceOrderResponse>), AppError> {
+    let user_id = auth.0.user_id();
+    state
+        .rate_limiter
+        .check(user_id.to_string(), &policies::PLACE_ORDER)?;
     // validate request body
     body.validate_request()?;
 
-    let res = state
-        .order_service
-        .place_order(auth.0.user_id(), body)
-        .await?;
+    let res = state.order_service.place_order(user_id, body).await?;
     Ok((StatusCode::OK, Json(res)))
 }
 

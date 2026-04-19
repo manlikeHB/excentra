@@ -1,18 +1,22 @@
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
 use axum::{
     Json,
-    extract::{Path, Query, State},
-    http::StatusCode,
+    extract::{ConnectInfo, Path, Query, State},
+    http::{HeaderMap, StatusCode},
 };
 
 use crate::{
-    api::types::{
-        AppState,
-        orderbook::{OrderBookParams, OrderBookResponse},
+    api::{
+        middleware::rate_limit::policies,
+        types::{
+            AppState,
+            orderbook::{OrderBookParams, OrderBookResponse},
+        },
     },
     error::AppError,
     types::asset_symbol::AssetSymbol,
+    utils::ip_address::extract_ip,
 };
 
 #[utoipa::path(
@@ -30,10 +34,15 @@ use crate::{
     )
 )]
 pub async fn get_orderbook(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
     State(state): State<Arc<AppState>>,
     Path(symbol): Path<String>,
     Query(params): Query<OrderBookParams>,
+    headers: HeaderMap,
 ) -> Result<(StatusCode, Json<OrderBookResponse>), AppError> {
+    let ip = extract_ip(&headers, addr);
+    state.rate_limiter.check(ip, &policies::GET_ORDER_BOOK)?;
+
     let asset_symbol = AssetSymbol::from_path(&symbol)?;
     let levels = params.levels.unwrap_or(20);
 

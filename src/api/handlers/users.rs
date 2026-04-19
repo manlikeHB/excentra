@@ -6,7 +6,7 @@ use axum::{Json, extract::State};
 use crate::api::types::users::UpdateUserRequest;
 use crate::{
     api::{
-        middleware::AuthUser,
+        middleware::auth::AuthUser,
         types::{AppState, users::UserResponse},
     },
     error::AppError,

@@ -1,10 +1,17 @@
+use crate::api::middleware::rate_limit::policies;
 use crate::api::types::auth::{LoginRequest, LoginResponse};
+use crate::utils::ip_address::extract_ip;
 use crate::{
     api::types::{AppState, auth::RegisterRequest},
     error::AppError,
 };
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{
+    Json,
+    extract::{ConnectInfo, State},
+    http::{HeaderMap, StatusCode},
+};
 use axum_extra::extract::{CookieJar, cookie::Cookie};
+use std::net::SocketAddr;
 use std::sync::Arc;
 use validator::Validate;
 
@@ -21,10 +28,15 @@ use validator::Validate;
     )
 )]
 pub async fn register_user(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
     jar: CookieJar,
     State(state): State<Arc<AppState>>,
     Json(body): Json<RegisterRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<LoginResponse>)), AppError> {
+    let ip = extract_ip(&headers, addr);
+    state.rate_limiter.check(ip, &policies::REGISTER)?;
+
     // validate email
     body.validate()?;
     let (access_token, refresh_token) = state
@@ -51,10 +63,15 @@ pub async fn register_user(
     )
 )]
 pub async fn login_user(
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
     jar: CookieJar,
     State(state): State<Arc<AppState>>,
     Json(body): Json<LoginRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<LoginResponse>)), AppError> {
+    let ip = extract_ip(&headers, addr);
+    state.rate_limiter.check(ip, &policies::LOGIN)?;
+
     body.validate()?;
 
     let (access_token, refresh_token) = state
