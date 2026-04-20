@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT o.id, tp.symbol, o.side as \"side: DBOrderSide\", \n        o.order_type as \"order_type: DBOrderType\", o.price, o.quantity, \n        o.remaining_quantity, o.status as \"status: DBOrderStatus\", \n        o.created_at, o.updated_at\n        FROM orders o\n        JOIN trading_pairs tp ON o.pair_id = tp.id\n        WHERE o.user_id = $1 AND status = 'open'\n        ORDER BY o.created_at DESC",
+  "query": "SELECT o.id, tp.symbol, o.side as \"side: DBOrderSide\", \n        o.order_type as \"order_type: DBOrderType\", o.price, o.quantity, \n        o.remaining_quantity, o.status as \"status: DBOrderStatus\", \n        o.created_at, o.updated_at\n        FROM orders o\n        JOIN trading_pairs tp ON o.pair_id = tp.id\n        WHERE o.user_id = $1 \n        AND status IN ('open', 'partially_filled')\n        ORDER BY o.created_at DESC",
   "describe": {
     "columns": [
       {
@@ -104,5 +104,5 @@
       false
     ]
   },
-  "hash": "cc141d1f20e7f6c8c43b5f45b2e1f41a741bbaaa0113db22ff5e30b780e5b722"
+  "hash": "d0b5dcf34d130c0390c11dde85e0b70dbcfef1938bc82256728b69b8f628eec9"
 }
