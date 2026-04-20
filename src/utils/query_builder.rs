@@ -16,11 +16,16 @@ pub enum QueryOrder {
 
 pub fn apply_status_filter<'q>(
     builder: &mut QueryBuilder<'q, sqlx::Postgres>,
-    status: Option<DBOrderStatus>,
+    status: &Option<Vec<DBOrderStatus>>,
 ) {
-    if let Some(s) = status {
-        builder.push(" AND status = ");
-        builder.push_bind(s.clone());
+    if let Some(status_vec) = status {
+        builder.push(" AND status IN (");
+
+        let mut separated = builder.separated(", ");
+        for status in status_vec {
+            separated.push_bind(*status);
+        }
+        builder.push(")");
     }
 }
 

@@ -548,7 +548,7 @@ impl OrderService {
                 WHERE o.user_id = ",
         );
         order_builder.push_bind(user_id);
-        query_builder::apply_status_filter(&mut order_builder, params.status);
+        query_builder::apply_status_filter(&mut order_builder, &params.status);
         query_builder::apply_pair_filter(
             &self.pool,
             &mut order_builder,
@@ -571,7 +571,7 @@ impl OrderService {
                 WHERE o.user_id = ",
         );
         count_builder.push_bind(user_id);
-        query_builder::apply_status_filter(&mut count_builder, params.status);
+        query_builder::apply_status_filter(&mut count_builder, &params.status);
         query_builder::apply_pair_filter(
             &self.pool,
             &mut count_builder,

@@ -151,7 +151,7 @@ impl From<OrderWithSymbol> for OrderResponse {
 #[derive(Debug, serde::Deserialize)]
 pub struct GetOrdersParams {
     #[serde(default, deserialize_with = "deserialize_status")]
-    pub status: Option<DBOrderStatus>,
+    pub status: Option<Vec<DBOrderStatus>>,
     pub pair: Option<String>,
     pub page: Option<u64>,
     pub limit: Option<u64>,
@@ -159,22 +159,41 @@ pub struct GetOrdersParams {
     pub order: Option<QueryOrder>,
 }
 
-pub fn deserialize_status<'de, D>(deserializer: D) -> Result<Option<DBOrderStatus>, D::Error>
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum OneOrMany {
+    One(String),
+    Many(Vec<String>),
+}
+
+pub fn deserialize_status<'de, D>(deserializer: D) -> Result<Option<Vec<DBOrderStatus>>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
-    let s = Option::<String>::deserialize(deserializer)?;
-    match s.as_deref().map(|s| s.to_lowercase()).as_deref() {
-        Some("open") => Ok(Some(DBOrderStatus::Open)),
-        Some("filled") => Ok(Some(DBOrderStatus::Filled)),
-        Some("cancelled") => Ok(Some(DBOrderStatus::Cancelled)),
-        Some("partially_filled") => Ok(Some(DBOrderStatus::PartiallyFilled)),
-        None => Ok(None),
-        Some(other) => Err(serde::de::Error::custom(format!(
-            "unknown status: {}",
-            other
-        ))),
-    }
+    let Some(raw) = Option::<OneOrMany>::deserialize(deserializer)? else {
+        return Ok(None);
+    };
+
+    let strings = match raw {
+        OneOrMany::One(s) => s.split(',').map(|s| s.trim().to_string()).collect(),
+        OneOrMany::Many(v) => v,
+    };
+
+    let statuses = strings
+        .iter()
+        .map(|s| match s.to_lowercase().as_str() {
+            "open" => Ok(DBOrderStatus::Open),
+            "filled" => Ok(DBOrderStatus::Filled),
+            "cancelled" => Ok(DBOrderStatus::Cancelled),
+            "partially_filled" => Ok(DBOrderStatus::PartiallyFilled),
+            other => Err(serde::de::Error::custom(format!(
+                "unknown status: {}",
+                other
+            ))),
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(Some(statuses))
 }
 
 #[cfg(test)]

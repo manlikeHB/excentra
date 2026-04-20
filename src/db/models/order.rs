@@ -36,9 +36,11 @@ pub enum DBOrderType {
     Debug, Clone, Copy, sqlx::Type, serde::Deserialize, serde::Serialize, utoipa::ToSchema,
 )]
 #[sqlx(type_name = "order_status", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
 pub enum DBOrderStatus {
     Open,
     #[sqlx(rename = "partially_filled")]
+    #[serde(rename = "partially_filled")]
     PartiallyFilled,
     Filled,
     Cancelled,

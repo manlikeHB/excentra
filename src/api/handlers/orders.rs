@@ -54,7 +54,7 @@ pub async fn place_order(
     path = "/api/v1/orders",
     tag = "Orders",
     params(
-        ("status" = Option<String>, Query, description = "Filter by status: open, filled, cancelled, partially_filled"),
+        ("status" = Option<String>, Query, description = "Filter by order status. Accepts a single value or comma-separated list e.g: `open` or `open,partially_filled`. Values: open, filled, cancelled, partially_filled"),
         ("pair" = Option<String>, Query, description = "Filter by trading pair e.g BTC/USDT"),
         ("page" = Option<u64>, Query, description = "Page number"),
         ("limit" = Option<u64>, Query, description = "Items per page"),

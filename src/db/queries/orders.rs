@@ -161,7 +161,8 @@ pub async fn get_open_orders_by_user(
         o.created_at, o.updated_at
         FROM orders o
         JOIN trading_pairs tp ON o.pair_id = tp.id
-        WHERE o.user_id = $1 AND status = 'open'
+        WHERE o.user_id = $1 
+        AND status IN ('open', 'partially_filled')
         ORDER BY o.created_at DESC"#,
         user_id
     )
