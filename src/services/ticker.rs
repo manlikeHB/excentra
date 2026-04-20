@@ -64,7 +64,7 @@ impl TickerService {
                     None => continue,
                 };
 
-                let _ = self.ws_sender.send(WsEvent::TickerUpdate {
+                let _ = self.ws_sender.send(WsEvent::Ticker {
                     symbol: stat.symbol,
                     last_price: ticker.last_price,
                     high_24h: ticker.high_24h,

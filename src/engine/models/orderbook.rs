@@ -14,13 +14,13 @@ pub struct OrderBook {
     asks: BTreeMap<Decimal, VecDeque<Order>>,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct OrderBookSnapshot {
     bids: Vec<PriceLevel>,
     asks: Vec<PriceLevel>,
 }
 
-#[derive(Debug, serde::Serialize, Clone, Copy)]
+#[derive(Debug, serde::Serialize, Clone, Copy, utoipa::ToSchema)]
 pub struct PriceLevel {
     price: Decimal,
     quantity: Decimal,

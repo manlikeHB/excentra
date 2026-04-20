@@ -331,7 +331,7 @@ impl OrderService {
             .await?;
 
             // broadcast trade
-            let ws_event = WsEvent::TradeEvent {
+            let ws_event = WsEvent::Trade {
                 symbol: symbol.as_str().to_string(),
                 price: trade.price(),
                 quantity: trade.quantity(),
@@ -341,7 +341,7 @@ impl OrderService {
             let _ = self.ws_sender.send(ws_event);
 
             // broadcast updated order (resting order)
-            let ws_event = WsEvent::OrderStatusUpdate {
+            let ws_event = WsEvent::OrderStatus {
                 user_id: resting_order.user_id(),
                 order_id: resting_order.id(),
                 status: resting_order.status().into(),
@@ -370,7 +370,7 @@ impl OrderService {
         tx.commit().await?;
 
         // broadcast updated order (incoming order)
-        let ws_event = WsEvent::OrderStatusUpdate {
+        let ws_event = WsEvent::OrderStatus {
             user_id: order.user_id(),
             order_id: order.id(),
             status: order.status().into(),
@@ -387,7 +387,7 @@ impl OrderService {
             .get_order_book(order.pair_id())?
             .depth(20);
 
-        let ws_event = WsEvent::OrderBookUpdate {
+        let ws_event = WsEvent::OrderBook {
             symbol: symbol.as_str().to_string(),
             snapshot: snapshot,
         };
@@ -491,7 +491,7 @@ impl OrderService {
         order.status = DBOrderStatus::Cancelled;
 
         // broadcast updated order
-        let ws_event = WsEvent::OrderStatusUpdate {
+        let ws_event = WsEvent::OrderStatus {
             user_id: order.user_id,
             order_id: order.id,
             status: order.status,
@@ -508,7 +508,7 @@ impl OrderService {
             .get_order_book(order.pair_id)?
             .depth(20);
 
-        let ws_event = WsEvent::OrderBookUpdate {
+        let ws_event = WsEvent::OrderBook {
             symbol: trading_pair.symbol.clone(),
             snapshot: snapshot,
         };

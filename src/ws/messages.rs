@@ -8,7 +8,7 @@ use rust_decimal::Decimal;
 use std::fmt;
 use uuid::Uuid;
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
 #[serde(tag = "action", rename_all = "lowercase")]
 pub enum InboundMessage {
     Subscribe { channel: String },
@@ -16,7 +16,7 @@ pub enum InboundMessage {
     Auth { token: String },
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum OutboundMessage {
     Subscribed { channel: String },
@@ -26,27 +26,28 @@ pub enum OutboundMessage {
     Authenticated,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum WsEvent {
-    OrderBookUpdate {
+    OrderBook {
         symbol: String,
         snapshot: OrderBookSnapshot,
     },
-    TradeEvent {
+    Trade {
         symbol: String,
         price: Decimal,
         quantity: Decimal,
         taker_side: DBOrderSide,
         created_at: DateTime<Utc>,
     },
-    OrderStatusUpdate {
+    OrderStatus {
         user_id: Uuid,
         order_id: Uuid,
         status: DBOrderStatus,
         quantity: Decimal,
         remaining_quantity: Decimal,
     },
-    TickerUpdate {
+    Ticker {
         symbol: String,
         last_price: Decimal,
         high_24h: Decimal,

@@ -220,16 +220,16 @@ async fn write_task(
                         let subs = subscriptions.lock().await;
 
                         let should_send = match &event {
-                            WsEvent::OrderBookUpdate{symbol, ..} => {
+                            WsEvent::OrderBook{symbol, ..} => {
                                 subs.contains(&format!("orderbook:{}", symbol))
                             }
-                            WsEvent::TradeEvent{symbol, ..} => {
+                            WsEvent::Trade{symbol, ..} => {
                                 subs.contains(&format!("trades:{}", symbol))
                             }
-                            WsEvent::OrderStatusUpdate{user_id: event_user_id, ..} => {
+                            WsEvent::OrderStatus{user_id: event_user_id, ..} => {
                                 subs.contains(&format!("orders:{}", event_user_id))
                             }
-                            WsEvent::TickerUpdate{symbol, ..} => {
+                            WsEvent::Ticker{symbol, ..} => {
                                 subs.contains(&format!("ticker:{}", symbol))
                             }
                         };

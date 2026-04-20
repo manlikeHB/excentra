@@ -76,6 +76,11 @@ use utoipa::OpenApi;
             crate::api::types::users::UpdateUserRequest,
             crate::api::types::password_reset::ForgotPasswordRequest,
             crate::api::types::password_reset::ResetPasswordRequest,
+            crate::engine::models::orderbook::OrderBookSnapshot,
+            crate::engine::models::orderbook::PriceLevel,
+            crate::ws::messages::InboundMessage,
+            crate::ws::messages::OutboundMessage,
+            crate::ws::messages::WsEvent,
         )
     ),
     tags(
