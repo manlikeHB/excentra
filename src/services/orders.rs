@@ -335,7 +335,7 @@ impl OrderService {
                 symbol: symbol.as_str().to_string(),
                 price: trade.price(),
                 quantity: trade.quantity(),
-                side: (*order.side()).into(),
+                taker_side: trade.taker_side().into(),
                 created_at: trade.created_at(),
             };
             let _ = self.ws_sender.send(ws_event);

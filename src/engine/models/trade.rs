@@ -2,6 +2,8 @@ use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use uuid::Uuid;
 
+use crate::engine::models::order::OrderSide;
+
 #[derive(Debug, Clone, Copy)]
 pub struct Trade {
     id: Uuid,
@@ -12,6 +14,7 @@ pub struct Trade {
     sell_order_id: Uuid,
     price: Decimal,
     quantity: Decimal,
+    taker_side: OrderSide,
     created_at: DateTime<Utc>,
 }
 
@@ -24,6 +27,7 @@ impl Trade {
         sell_order_id: Uuid,
         price: Decimal,
         quantity: Decimal,
+        taker_side: OrderSide,
     ) -> Self {
         Trade {
             id: Uuid::new_v4(),
@@ -34,6 +38,7 @@ impl Trade {
             sell_order_id,
             price,
             quantity,
+            taker_side,
             created_at: chrono::Utc::now(),
         }
     }
@@ -71,5 +76,9 @@ impl Trade {
 
     pub fn seller_id(&self) -> Uuid {
         self.seller_id
+    }
+
+    pub fn taker_side(&self) -> OrderSide {
+        self.taker_side
     }
 }

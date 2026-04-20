@@ -232,6 +232,7 @@ impl OrderBook {
                                 book_order.id(),
                                 book_price,
                                 traded_quantity,
+                                *order.side(),
                             ),
                             OrderSide::Sell => Trade::new(
                                 order.pair_id(),
@@ -241,6 +242,7 @@ impl OrderBook {
                                 order.id(),
                                 book_price,
                                 traded_quantity,
+                                *order.side(),
                             ),
                         };
 
@@ -322,6 +324,7 @@ impl OrderBook {
                         resting_order.id(),
                         *ask_price,
                         fill_qty,
+                        *order.side(),
                     );
                     trades.push(trade);
 
@@ -345,6 +348,7 @@ impl OrderBook {
                         resting_order.id(),
                         *ask_price,
                         filled_qty,
+                        *order.side(),
                     );
                     trades.push(trade);
 

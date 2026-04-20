@@ -1,7 +1,10 @@
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::db::models::trade::{DBTrade, LastPrice, TradeStat};
+use crate::db::models::{
+    order::DBOrderSide,
+    trade::{DBTrade, LastPrice, TradeStat},
+};
 
 pub async fn create_trade<'e, E>(executor: E, trade: DBTrade) -> Result<DBTrade, sqlx::Error>
 where
@@ -10,15 +13,16 @@ where
     sqlx::query_as!(
         DBTrade,
         r#"
-    INSERT INTO trades (pair_id, buy_order_id, sell_order_id, price, quantity)
-    VALUES ($1, $2, $3, $4, $5) 
-    RETURNING *
+    INSERT INTO trades (pair_id, buy_order_id, sell_order_id, price, quantity, taker_side)
+    VALUES ($1, $2, $3, $4, $5, $6::order_side) 
+    RETURNING id, pair_id, buy_order_id, sell_order_id, price, quantity, taker_side as "taker_side: DBOrderSide", created_at
     "#,
         trade.pair_id,
         trade.buy_order_id,
         trade.sell_order_id,
         trade.price,
-        trade.quantity
+        trade.quantity,
+        trade.taker_side as DBOrderSide,
     )
     .fetch_one(executor)
     .await
@@ -32,7 +36,7 @@ pub async fn get_recent_trades(
     sqlx::query_as!(
         DBTrade,
         r#"
-    SELECT * FROM trades 
+    SELECT id, pair_id, buy_order_id, sell_order_id, price, quantity, taker_side as "taker_side: DBOrderSide", created_at FROM trades 
     WHERE pair_id = $1
     ORDER BY created_at DESC
     LIMIT $2
@@ -93,7 +97,7 @@ pub async fn get_baseline_trade(
     pool: &PgPool,
     pair_id: Uuid,
 ) -> Result<Option<DBTrade>, sqlx::Error> {
-    sqlx::query_as!(DBTrade, r#"SELECT * FROM trades WHERE pair_id = $1 AND created_at < NOW() - INTERVAL '24 hours' ORDER BY created_at DESC LIMIT 1"#, pair_id).fetch_optional(pool).await
+    sqlx::query_as!(DBTrade, r#"SELECT id, pair_id, buy_order_id, sell_order_id, price, quantity, taker_side as "taker_side: DBOrderSide", created_at FROM trades WHERE pair_id = $1 AND created_at < NOW() - INTERVAL '24 hours' ORDER BY created_at DESC LIMIT 1"#, pair_id).fetch_optional(pool).await
 }
 
 pub async fn get_all_trade_stats(pool: &PgPool) -> Result<Vec<TradeStat>, sqlx::Error> {

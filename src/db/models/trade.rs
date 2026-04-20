@@ -12,6 +12,7 @@ pub struct DBTrade {
     pub sell_order_id: Uuid,
     pub price: Decimal,
     pub quantity: Decimal,
+    pub taker_side: DBOrderSide,
     pub created_at: DateTime<Utc>,
 }
 
@@ -24,6 +25,7 @@ impl From<Trade> for DBTrade {
             sell_order_id: trade.sell_order_id(),
             price: trade.price(),
             quantity: trade.quantity(),
+            taker_side: trade.taker_side().into(),
             created_at: trade.created_at(),
         }
     }

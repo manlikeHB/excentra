@@ -17,6 +17,7 @@ pub struct TradeResponse {
     pub symbol: String,
     pub price: Decimal,
     pub quantity: Decimal,
+    pub taker_side: DBOrderSide,
     pub created_at: DateTime<Utc>,
 }
 
@@ -27,6 +28,7 @@ impl TradeResponse {
             symbol,
             price: t.price,
             quantity: t.quantity,
+            taker_side: t.taker_side,
             created_at: t.created_at,
         }
     }

@@ -36,7 +36,7 @@ pub enum WsEvent {
         symbol: String,
         price: Decimal,
         quantity: Decimal,
-        side: DBOrderSide,
+        taker_side: DBOrderSide,
         created_at: DateTime<Utc>,
     },
     OrderStatusUpdate {
