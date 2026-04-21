@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/context'
@@ -16,6 +16,7 @@ interface OrderFormProps {
   symbol: string      // "BTC/USDT"
   baseAsset: string   // "BTC"
   quoteAsset: string  // "USDT"
+  initialPrice?: string
 }
 
 type Side = 'buy' | 'sell'
@@ -23,7 +24,7 @@ type OrderType = 'limit' | 'market'
 
 const PERCENTAGES = [25, 50, 75, 100]
 
-export function OrderForm({ symbol, baseAsset, quoteAsset }: OrderFormProps) {
+export function OrderForm({ symbol, baseAsset, quoteAsset, initialPrice }: OrderFormProps) {
   const { user } = useAuth()
   const router = useRouter()
   const qc = useQueryClient()
@@ -35,6 +36,7 @@ export function OrderForm({ symbol, baseAsset, quoteAsset }: OrderFormProps) {
   const [price, setPrice] = useState('')
   const [amount, setAmount] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const hasUserEdited = useRef(false)
 
   const pair = pairs?.find((p) => p.symbol === symbol)
 
@@ -47,8 +49,17 @@ export function OrderForm({ symbol, baseAsset, quoteAsset }: OrderFormProps) {
   const baseBalance = balances?.find((b) => b.asset === baseAsset)
   const quoteBalance = balances?.find((b) => b.asset === quoteAsset)
 
-  // Pre-fill price from order book
+  // When initialPrice arrives from an order book click, treat it as user-edited (Fix 3)
   useEffect(() => {
+    if (initialPrice) {
+      setPrice(initialPrice)
+      hasUserEdited.current = true
+    }
+  }, [initialPrice])
+
+  // Pre-fill price from order book; skip if user has manually edited (Fix 2)
+  useEffect(() => {
+    if (hasUserEdited.current) return
     if (side === "buy" && ob.asks.length > 0) {
       setPrice(ob.asks[0].price);
     } else if (side === "sell" && ob.bids.length > 0) {
@@ -144,7 +155,7 @@ export function OrderForm({ symbol, baseAsset, quoteAsset }: OrderFormProps) {
       <div className="grid grid-cols-2 gap-1 p-1 bg-bg-elevated rounded-md">
         <button
           type="button"
-          onClick={() => setSide('buy')}
+          onClick={() => { hasUserEdited.current = false; setSide('buy') }}
           className={cn(
             'py-1.5 text-sm font-semibold rounded transition-all duration-150',
             side === 'buy'
@@ -156,7 +167,7 @@ export function OrderForm({ symbol, baseAsset, quoteAsset }: OrderFormProps) {
         </button>
         <button
           type="button"
-          onClick={() => setSide('sell')}
+          onClick={() => { hasUserEdited.current = false; setSide('sell') }}
           className={cn(
             'py-1.5 text-sm font-semibold rounded transition-all duration-150',
             side === 'sell'
@@ -196,7 +207,10 @@ export function OrderForm({ symbol, baseAsset, quoteAsset }: OrderFormProps) {
           <input
             type="number"
             value={price}
-            onChange={(e) => setPrice(e.target.value)}
+            onChange={(e) => {
+              hasUserEdited.current = e.target.value !== ''
+              setPrice(e.target.value)
+            }}
             placeholder="0.00"
             step="any"
             className="w-full bg-bg-elevated border border-bg-border rounded-md py-2.5 px-3 text-sm font-mono text-right text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-0 focus:shadow-[0_0_0_3px_rgb(59_130_246_/_0.15)] transition-all duration-150"
