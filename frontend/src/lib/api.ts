@@ -271,9 +271,9 @@ export const adminApi = {
 
   getAssets: () => request<import("./types").AssetResponse[]>("/assets"),
 
-  createAsset: (symbol: string, name: string) =>
+  createAsset: (symbol: string, name: string, decimals: number) =>
     request<import("./types").AssetResponse>("/assets", {
       method: "POST",
-      body: JSON.stringify({ symbol, name }),
+      body: JSON.stringify({ symbol, name, decimals }),
     }),
 };
