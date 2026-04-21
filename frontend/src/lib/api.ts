@@ -124,7 +124,7 @@ async function request<T>(
   } catch (err) {
     const msg =
       err instanceof TypeError
-        ? `Cannot reach backend at ${BASE_URL}. Check that it is running and CORS is configured for http://localhost:3001.`
+        ? `Cannot reach backend at ${BASE_URL}. Check that it is running and CORS is configured for http://localhost:3001.` //TODO 
         : "Network error";
     throw new Error(msg);
   }

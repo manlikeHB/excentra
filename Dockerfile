@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 rust:slim-bookworm AS chef
+FROM rust:slim-bookworm AS chef
 RUN cargo install cargo-chef --locked
 WORKDIR /app
 
@@ -12,9 +12,9 @@ RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/li
 RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
 ENV SQLX_OFFLINE=true
-RUN cargo build --release
+RUN cargo build --release --bin excentra
 
-FROM --platform=linux/amd64 debian:bookworm-slim AS runtime
+FROM debian:bookworm-slim AS runtime
 RUN apt-get update && apt-get install -y libssl3 ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /app/target/release/excentra .
