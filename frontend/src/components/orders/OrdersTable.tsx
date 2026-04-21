@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ordersApi } from '@/lib/api'
-import { OrderResponse, PaginatedResponse } from '@/lib/types'
+import { OrderResponse, PaginatedOrderResponse } from '@/lib/types'
 import { formatPrice, formatDecimal } from '@/lib/symbols'
 import { toast } from 'sonner'
 import { X } from 'lucide-react'
@@ -28,7 +28,7 @@ export function OrdersTable({ compact = false, statusFilter }: OrdersTableProps)
   const statusParam =
     activeTab === 'open' ? 'open' : undefined
 
-  const { data, isLoading } = useQuery<PaginatedResponse<OrderResponse>>({
+  const { data, isLoading } = useQuery<PaginatedOrderResponse>({
     queryKey: ['orders', activeTab, page],
     queryFn: () =>
       ordersApi.list({

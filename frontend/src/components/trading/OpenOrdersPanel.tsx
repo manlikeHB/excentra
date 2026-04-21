@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ordersApi } from '@/lib/api'
-import { OrderResponse, PaginatedResponse, UserResponse } from '@/lib/types'
+import { OrderResponse, PaginatedOrderResponse, UserResponse } from '@/lib/types'
 import { formatPrice, formatDecimal } from '@/lib/symbols'
 import { useWsContext } from '@/lib/context'
 import { useEffect } from 'react'
@@ -21,7 +21,7 @@ export function OpenOrdersPanel({ user, symbol }: OpenOrdersPanelProps) {
   const qc = useQueryClient()
   const { subscribe } = useWsContext()
 
-  const { data, isLoading, refetch } = useQuery<PaginatedResponse<OrderResponse>>({
+  const { data, isLoading, refetch } = useQuery<PaginatedOrderResponse>({
     queryKey: ["orders", "open,partially_filled", 1],
     queryFn: () =>
       ordersApi.list({

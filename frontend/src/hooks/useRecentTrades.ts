@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { marketApi } from '@/lib/api'
-import { TradeResponse, TradeEventData } from '@/lib/types'
+import { TradeResponse, WsEvent } from '@/lib/types'
 import { useWsContext } from '@/lib/context'
 import { toPathSymbol } from '@/lib/symbols'
 
@@ -29,11 +29,11 @@ export function useRecentTrades(symbol: string) {
     if (!symbol) return
     const channel = `trades:${symbol}`
     const unsub = subscribe(channel, (data) => {
-      const d = data as TradeEventData
+      const d = data as Extract<WsEvent, { type: 'trade' }>
       const newTrade: TradeResponse = {
         id: `${d.created_at}-${Math.random()}`,
         symbol: d.symbol,
-        side: d.side,
+        taker_side: d.taker_side,
         price: d.price,
         quantity: d.quantity,
         created_at: d.created_at,

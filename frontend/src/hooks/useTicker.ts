@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { marketApi } from '@/lib/api'
-import { TickerResponse, TickerUpdateData } from '@/lib/types'
+import { TickerResponse, WsEvent } from '@/lib/types'
 import { useWsContext } from '@/lib/context'
 import { toPathSymbol } from '@/lib/symbols'
 
@@ -32,7 +32,7 @@ export function useTicker(symbol: string) {
     if (!symbol) return
     const channel = `ticker:${symbol}`
     const unsub = subscribe(channel, (data) => {
-      const d = data as TickerUpdateData
+      const d = data as Extract<WsEvent, { type: 'ticker' }>
       setTicker({
         symbol: d.symbol,
         last_price: d.last_price,

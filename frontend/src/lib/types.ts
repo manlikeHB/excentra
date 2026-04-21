@@ -1,181 +1,46 @@
-export interface UserResponse {
-  id: string
-  username: string | null
-  email: string
-  role: 'user' | 'admin'
-  is_suspended: boolean
-  created_at: string
-  updated_at: string
-}
+// Backend-derived types are re-exported from ./generated/api-types,
+// which is generated from the Rust OpenAPI spec.
+// Regenerate via `npm run gen:api` from the frontend directory.
+// Do not edit ./generated/api-types.ts by hand.
 
-export interface BalanceResponse {
-  asset: string
-  available: string
-  held: string
-  updated_at: string
-}
+import type { components } from './generated/api-types'
 
-export interface TickerResponse {
-  symbol: string
-  last_price: string
-  high_24h: string
-  low_24h: string
-  volume_24h: string
-  price_change_pct: string
-}
+type S = components['schemas']
 
-export interface UserTradeResponse {
-  id: string;
-  symbol: string;
-  side: "buy" | "sell";
-  price: string;
-  quantity: string;
-  total: string;
-  created_at: string;
-}
+// — REST response types —
+export type UserResponse = S['UserResponse']
+export type BalanceResponse = S['BalanceResponse']
+export type TickerResponse = S['TickerResponse']
+export type OrderResponse = S['OrderResponse']
+export type TradeResponse = S['TradeResponse']
+export type UserTradeResponse = S['UserTradeResponse']
+export type OrderBookResponse = S['OrderBookResponse']
+export type PairResponse = S['TradingPairsResponse']
+export type AssetResponse = S['Asset']
+export type AdminStats = S['AdminStats']
+export type PriceLevel = S['PriceLevel']
 
-export interface PriceLevel {
-  price: string;
-  quantity: string;
-}
+// — Paginated types —
+export type PaginatedOrderResponse = S['PaginatedResponse_OrderResponse']
+export type PaginatedUserTradeResponse = S['PaginatedResponse_UserTradeResponse']
+export type PaginatedUserSummary = S['PaginatedResponse_UserSummary']
 
-export interface OrderBookResponse {
-  symbol: string;
-  bids: PriceLevel[];
-  asks: PriceLevel[];
-}
+// — WebSocket types —
+export type WsEvent = S['WsEvent']
+export type InboundMessage = S['InboundMessage']
+export type OutboundMessage = S['OutboundMessage']
+export type OrderBookSnapshot = S['OrderBookSnapshot']
 
-export interface OrderBookUpdateData {
-  snapshot: {
-    bids: PriceLevel[];
-    asks: PriceLevel[];
-  };
-}
+// — Frontend-only types (no backend equivalent) —
 
-export interface PairResponse {
-  id: string
-  symbol: string
-  base_asset: string
-  quote_asset: string
-  is_active: boolean
-}
-
-export interface OrderResponse {
-  id: string
-  symbol: string
-  side: 'buy' | 'sell'
-  order_type: 'limit' | 'market'
-  price: string | null
-  quantity: string
-  remaining_quantity: string
-  status: 'open' | 'partially_filled' | 'filled' | 'cancelled'
-  created_at: string
-  updated_at: string
-}
-
-export interface TradeResponse {
-  id: string
-  symbol: string
-  side: 'buy' | 'sell'
-  price: string
-  quantity: string
-  created_at: string
-}
-
-export interface PaginatedResponse<T> {
-  data: T[]
-  page: number
-  limit: number
-  total: number
-}
-
-export interface AdminStats {
-  total_users: number
-  active_ws_connections: number
-  orders_processed: number
-  uptime_seconds: number
-  pair_volumes: { symbol: string; volume_24h: string }[]
-}
-
-export interface ErrorResponse {
-  error: string
-}
-
-export interface AssetResponse {
-  symbol: string
-  name: string
-}
-
-// WebSocket message types
-export interface WsAuthMessage {
-  action: 'auth'
-  token: string
-}
-
-export interface WsSubscribeMessage {
-  action: 'subscribe' | 'unsubscribe'
-  channel: string
-}
-
-export type WsInbound = WsAuthMessage | WsSubscribeMessage
-
-export interface WsSubscribedEvent {
-  type: 'subscribed'
-  channel: string
-}
-
-export interface WsAuthenticatedEvent {
-  type: 'authenticated'
-}
-
-export interface WsErrorEvent {
-  type: 'error'
-  message: string
-}
-
-export interface TradeEventData {
-  symbol: string;
-  price: string;
-  side: "buy" | "sell"
-  quantity: string;
-  created_at: string;
-}
-
-export interface TickerUpdateData {
-  symbol: string
-  last_price: string
-  high_24h: string
-  low_24h: string
-  volume_24h: string
-  price_change_pct: string
-}
-
-export interface OrderStatusUpdateData {
-  user_id: string
-  order_id: string
-  status: string
-  quantity: string
-  remaining_quantity: string
-}
-
-export type WsEventData =
-  | { OrderBookUpdate: OrderBookUpdateData }
-  | { TradeEvent: TradeEventData }
-  | { TickerUpdate: TickerUpdateData }
-  | { OrderStatusUpdate: OrderStatusUpdateData }
-
-export interface WsEventMessage {
-  type: 'event'
-  data: WsEventData
-}
-
-export type WsOutbound = WsSubscribedEvent | WsAuthenticatedEvent | WsErrorEvent | WsEventMessage
-
-// Candle type for chart
 export interface Candle {
   time: number
   open: number
   high: number
   low: number
   close: number
+}
+
+export interface ErrorResponse {
+  error: string
 }

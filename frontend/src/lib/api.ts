@@ -239,7 +239,7 @@ export const ordersApi = {
     if (params.limit) qs.set("limit", String(params.limit));
     if (params.order) qs.set("order", params.order);
     return request<
-      import("./types").PaginatedResponse<import("./types").OrderResponse>
+      import("./types").PaginatedOrderResponse
     >(`/orders?${qs}`);
   },
 
@@ -278,7 +278,7 @@ export const tradesApi = {
     if (params.limit) qs.set('limit', String(params.limit))
     if (params.order) qs.set('order', params.order)
     return request<
-      import("./types").PaginatedResponse<import("./types").UserTradeResponse>
+      import("./types").PaginatedUserTradeResponse
     >(`/trades/me?${qs}`);
   },
 }

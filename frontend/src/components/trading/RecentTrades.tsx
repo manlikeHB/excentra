@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRecentTrades } from '@/hooks/useRecentTrades'
 import { formatPrice } from '@/lib/symbols'
 import { TradeResponse } from '@/lib/types'
@@ -13,7 +13,6 @@ interface RecentTradesProps {
 
 export function RecentTrades({ symbol, quoteAsset, baseAsset }: RecentTradesProps) {
   const trades = useRecentTrades(symbol)
-  const prevPriceRef = useRef<number | null>(null)
 
   return (
     <div className="flex flex-col h-full">
@@ -29,19 +28,13 @@ export function RecentTrades({ symbol, quoteAsset, baseAsset }: RecentTradesProp
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {trades.map((trade, i) => {
-          const price = parseFloat(trade.price)
-          const prevPrice = i < trades.length - 1 ? parseFloat(trades[i + 1].price) : price
-          const isUp = price >= prevPrice
-          return (
-            <TradeRow
-              key={trade.id}
-              trade={trade}
-              isUp={isUp}
-              quoteAsset={quoteAsset}
-            />
-          )
-        })}
+        {trades.map((trade) => (
+          <TradeRow
+            key={trade.id}
+            trade={trade}
+            quoteAsset={quoteAsset}
+          />
+        ))}
       </div>
     </div>
   )
@@ -49,11 +42,9 @@ export function RecentTrades({ symbol, quoteAsset, baseAsset }: RecentTradesProp
 
 function TradeRow({
   trade,
-  isUp,
   quoteAsset,
 }: {
   trade: TradeResponse
-  isUp: boolean
   quoteAsset: string
 }) {
   const time = new Date(trade.created_at)
@@ -65,7 +56,7 @@ function TradeRow({
   return (
     <div className="grid grid-cols-3 px-3 py-[3px] hover:bg-bg-elevated/40 transition-colors duration-100">
       <span
-        className={`text-xs font-mono ${isUp ? 'text-buy' : 'text-sell'}`}
+        className={`text-xs font-mono ${trade.taker_side === 'buy' ? 'text-buy' : 'text-sell'}`}
       >
         {formatPrice(trade.price, quoteAsset)}
       </span>

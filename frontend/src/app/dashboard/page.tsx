@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useSearchParams } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { balancesApi, usersApi, ordersApi, tradesApi } from '@/lib/api'
-import { BalanceResponse, UserResponse, OrderResponse, TradeResponse, PaginatedResponse } from '@/lib/types'
+import { BalanceResponse, UserResponse, OrderResponse, PaginatedOrderResponse, PaginatedUserTradeResponse } from '@/lib/types'
 import { formatPrice, formatDecimal } from '@/lib/symbols'
 import { Skeleton } from '@/components/shared/Skeleton'
 import { X } from 'lucide-react'
@@ -42,7 +42,7 @@ const SUPPORTED_ASSETS = ['BTC', 'ETH', 'SOL', 'USDT']
 function mergeBalances(balances: BalanceResponse[] | undefined): BalanceResponse[] {
   return SUPPORTED_ASSETS.map((asset) => {
     const found = balances?.find((b) => b.asset === asset)
-    return found ?? { asset, available: '0', held: '0', updated_at: '' }
+    return found ?? { asset, available: '0', held: '0' }
   })
 }
 
@@ -157,7 +157,7 @@ function OrdersView({ user: _user }: { user: UserResponse }) {
   const qc = useQueryClient();
 
   const { data: openData, isLoading: openLoading } = useQuery<
-    PaginatedResponse<OrderResponse>
+    PaginatedOrderResponse
   >({
     queryKey: ["dashboard", "orders", "open,partially_filled", openPage],
     queryFn: () =>
@@ -170,14 +170,14 @@ function OrdersView({ user: _user }: { user: UserResponse }) {
   });
 
   const { data: historyData, isLoading: historyLoading } = useQuery<
-    PaginatedResponse<OrderResponse>
+    PaginatedOrderResponse
   >({
     queryKey: ["dashboard", "orders", "history", historyPage],
     queryFn: () => ordersApi.list({ page: historyPage, limit: 20, order: 'desc' }),
   });
 
   const { data: tradesData, isLoading: tradesLoading } = useQuery<
-    PaginatedResponse<TradeResponse>
+    PaginatedUserTradeResponse
   >({
     queryKey: ["dashboard", "trades", tradesPage],
     queryFn: () => tradesApi.mine({ page: tradesPage, limit: 20, order: "desc" }),

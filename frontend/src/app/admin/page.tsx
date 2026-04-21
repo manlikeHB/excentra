@@ -74,17 +74,17 @@ function AdminDashboard() {
           value={stats ? `${uptimeHours}h ${uptimeMinutes}m` : '—'}
           icon={<Clock size={18} />}
         />
-        {stats?.pair_volumes.slice(0, 2).map((pv) => (
+        {stats?.volume_24h.slice(0, 2).map((pv) => (
           <MetricCard
             key={pv.symbol}
             label={`${pv.symbol} 24h Volume`}
-            value={formatCompact(pv.volume_24h)}
+            value={formatCompact(pv.volume)}
             icon={<BarChart2 size={18} />}
           />
         ))}
       </div>
 
-      {stats?.pair_volumes && stats.pair_volumes.length > 0 && (
+      {stats?.volume_24h && stats.volume_24h.length > 0 && (
         <div className="bg-bg-surface border border-bg-border rounded-lg overflow-hidden">
           <div className="px-4 py-3 border-b border-bg-border">
             <h2 className="text-sm font-semibold text-text-primary">Pair Volumes (24h)</h2>
@@ -97,11 +97,11 @@ function AdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {stats.pair_volumes.map((pv) => (
+              {stats.volume_24h.map((pv) => (
                 <tr key={pv.symbol} className="border-b border-bg-border/40 hover:bg-bg-elevated/30 transition-colors duration-100">
                   <td className="px-4 py-2 text-sm text-text-secondary">{pv.symbol}</td>
                   <td className="px-4 py-2 text-sm font-mono text-text-secondary text-right">
-                    {formatCompact(pv.volume_24h)}
+                    {formatCompact(pv.volume)}
                   </td>
                 </tr>
               ))}

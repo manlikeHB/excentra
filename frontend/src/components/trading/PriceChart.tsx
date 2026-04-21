@@ -4,8 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { createChart, CandlestickSeries, IChartApi, ISeriesApi, CandlestickData, UTCTimestamp } from 'lightweight-charts'
 import { useRecentTrades } from '@/hooks/useRecentTrades'
 import { useWsContext } from '@/lib/context'
-import { TradeEventData } from '@/lib/types'
-import { Candle } from '@/lib/types'
+import { WsEvent, Candle } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 interface PriceChartProps {
@@ -150,7 +149,7 @@ export function PriceChart({ symbol }: PriceChartProps) {
     if (!symbol) return
     const channel = `trades:${symbol}`
     const unsub = subscribe(channel, (data) => {
-      const d = data as TradeEventData
+      const d = data as Extract<WsEvent, { type: 'trade' }>
       if (!seriesRef.current) return
       const ts = Math.floor(new Date(d.created_at).getTime() / 1000)
       const bucket = (Math.floor(ts / intervalSeconds) * intervalSeconds) as UTCTimestamp

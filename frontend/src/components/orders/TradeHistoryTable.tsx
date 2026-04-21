@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { tradesApi } from '@/lib/api'
-import { TradeResponse, PaginatedResponse } from '@/lib/types'
+import { UserTradeResponse, PaginatedUserTradeResponse } from '@/lib/types'
 import { formatPrice, formatDecimal } from '@/lib/symbols'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/shared/Skeleton'
@@ -15,7 +15,7 @@ interface TradeHistoryTableProps {
 export function TradeHistoryTable({ compact = false }: TradeHistoryTableProps) {
   const [page, setPage] = useState(1)
 
-  const { data, isLoading } = useQuery<PaginatedResponse<TradeResponse>>({
+  const { data, isLoading } = useQuery<PaginatedUserTradeResponse>({
     queryKey: ['trades', 'me', page],
     queryFn: () =>
       tradesApi.mine({ page, limit: compact ? 10 : 20, order: 'desc' }),
@@ -98,7 +98,7 @@ function Th({ children, align = 'left' }: { children?: React.ReactNode; align?: 
   )
 }
 
-function TradeRow({ trade }: { trade: TradeResponse }) {
+function TradeRow({ trade }: { trade: UserTradeResponse }) {
   const quoteAsset = trade.symbol.split('/')[1] ?? 'USDT'
   const total = parseFloat(trade.price) * parseFloat(trade.quantity)
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { marketApi } from '@/lib/api'
-import { OrderBookResponse, OrderBookUpdateData } from '@/lib/types'
+import { OrderBookResponse, WsEvent } from '@/lib/types'
 import { useWsContext } from '@/lib/context'
 import { toPathSymbol } from '@/lib/symbols'
 
@@ -33,9 +33,9 @@ export function useOrderBook(symbol: string) {
     if (!symbol) return
     const channel = `orderbook:${symbol}`
     const unsub = subscribe(channel, (data) => {
-      const d = data as OrderBookUpdateData
+      const d = data as Extract<WsEvent, { type: 'order_book' }>
       if (d.snapshot && Array.isArray(d.snapshot.bids) && Array.isArray(d.snapshot.asks)) {
-        setOrderBook((prev) => ({ ...prev, ...d.snapshot }))
+        setOrderBook((prev) => ({ ...prev, bids: d.snapshot.bids, asks: d.snapshot.asks }))
       }
     })
     return unsub

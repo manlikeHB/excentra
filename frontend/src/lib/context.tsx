@@ -9,7 +9,7 @@ import React, {
   useState,
 } from 'react'
 import { authApi, setAccessToken, setOnRefreshFail } from './api'
-import { UserResponse } from './types'
+import { UserResponse, WsEvent } from './types'
 
 // ─── Auth Context ─────────────────────────────────────────────────────────────
 
@@ -50,23 +50,11 @@ export function useWsContext(): WsContextValue {
 
 // ─── WS Manager (singleton) ───────────────────────────────────────────────────
 
-function getChannelFromEvent(data: Record<string, unknown>): string | null {
-  if (data.OrderBookUpdate) {
-    const inner = data.OrderBookUpdate as { symbol: string }
-    return `orderbook:${inner.symbol}`
-  }
-  if (data.TradeEvent) {
-    const inner = data.TradeEvent as { symbol: string }
-    return `trades:${inner.symbol}`
-  }
-  if (data.TickerUpdate) {
-    const inner = data.TickerUpdate as { symbol: string }
-    return `ticker:${inner.symbol}`
-  }
-  if (data.OrderStatusUpdate) {
-    const inner = data.OrderStatusUpdate as { user_id: string }
-    return `orders:${inner.user_id}`
-  }
+function getChannelFromEvent(data: WsEvent): string | null {
+  if (data.type === 'order_book') return `orderbook:${data.symbol}`
+  if (data.type === 'trade') return `trades:${data.symbol}`
+  if (data.type === 'ticker') return `ticker:${data.symbol}`
+  if (data.type === 'order_status') return `orders:${data.user_id}`
   return null
 }
 
@@ -172,7 +160,10 @@ function WsProviderInner({ children }: { children: React.ReactNode }) {
   }, [token])
 
   const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return
+    const existing = wsRef.current
+    if (existing && (existing.readyState === WebSocket.CONNECTING || existing.readyState === WebSocket.OPEN)) {
+      return
+    }
 
     const ws = new WebSocket(WS_URL)
     wsRef.current = ws
@@ -197,20 +188,14 @@ function WsProviderInner({ children }: { children: React.ReactNode }) {
         const msg = JSON.parse(event.data as string)
 
         if (msg.type === 'event' && msg.data) {
-          const data = msg.data as Record<string, unknown>
+          const data = msg.data as WsEvent
           const channel = getChannelFromEvent(data)
           if (!channel) return
 
-          // Get inner data
-          const inner =
-            (data.OrderBookUpdate as unknown) ||
-            (data.TradeEvent as unknown) ||
-            (data.TickerUpdate as unknown) ||
-            (data.OrderStatusUpdate as unknown)
-
           const callbacks = subscribersRef.current.get(channel)
           if (callbacks) {
-            callbacks.forEach((cb) => cb(inner))
+              console.log("[WS dispatch]", channel, "callbacks firing:", callbacks.size);
+            callbacks.forEach((cb) => cb(data))
           }
         }
       } catch {
@@ -239,39 +224,60 @@ function WsProviderInner({ children }: { children: React.ReactNode }) {
     return () => {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = null
       }
-      wsRef.current?.close()
+      const ws = wsRef.current
+      wsRef.current = null
+      if (ws) {
+        ws.onclose = null
+        ws.onerror = null
+        ws.onmessage = null
+        ws.onopen = null
+        ws.close()
+      }
     }
   }, [connect])
 
   const subscribe = useCallback((channel: string, cb: WsCallback): (() => void) => {
-    if (!subscribersRef.current.has(channel)) {
-      subscribersRef.current.set(channel, new Set())
-    }
-    subscribersRef.current.get(channel)!.add(cb)
+    console.log(
+      "[WS subscribe]",
+      channel,
+      "total subs for channel:",
+      (subscribersRef.current.get(channel)?.size ?? 0) + 1,
+    );
 
-    // Subscribe if not already
+    if (!subscribersRef.current.has(channel)) {
+      subscribersRef.current.set(channel, new Set());
+    }
+    subscribersRef.current.get(channel)!.add(cb);
+
     if (!channelsRef.current.has(channel)) {
-      channelsRef.current.add(channel)
+      channelsRef.current.add(channel);
       if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ action: 'subscribe', channel }))
+        console.log("[WS send subscribe]", channel);
+        wsRef.current.send(JSON.stringify({ action: "subscribe", channel }));
+      } else {
+        console.log("[WS subscribe queued — ws not open]", channel);
       }
     }
 
     return () => {
-      const cbs = subscribersRef.current.get(channel)
+      console.log("[WS unsubscribe]", channel);
+      const cbs = subscribersRef.current.get(channel);
       if (cbs) {
-        cbs.delete(cb)
+        cbs.delete(cb);
+        console.log("[WS unsubscribe] remaining subs:", cbs.size);
         if (cbs.size === 0) {
-          subscribersRef.current.delete(channel)
-          channelsRef.current.delete(channel)
+          subscribersRef.current.delete(channel);
+          channelsRef.current.delete(channel);
           if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(JSON.stringify({ action: 'unsubscribe', channel }))
+            console.log("[WS send unsubscribe]", channel);
+            wsRef.current.send(JSON.stringify({ action: "unsubscribe", channel }));
           }
         }
       }
-    }
-  }, [])
+    };
+  }, []);
 
   return (
     <WsContext.Provider value={{ subscribe, isConnected }}>
