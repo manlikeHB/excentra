@@ -246,38 +246,34 @@ export const usersApi = {
 
 // Admin (admin only)
 export const adminApi = {
-  getUsers: () =>
-    request<import('./types').UserResponse[]>('/admin/users'),
+  getUsers: () => request<import("./types").PaginatedUserSummary>("/admin/users"),
 
-  updateRole: (id: string, role: 'user' | 'admin') =>
-    request<import('./types').UserResponse>(`/admin/users/${id}/role`, {
-      method: 'PATCH',
+  updateRole: (id: string, role: "user" | "admin") =>
+    request<import("./types").UserResponse>(`/admin/users/${id}/role`, {
+      method: "PATCH",
       body: JSON.stringify({ role }),
     }),
 
   suspend: (id: string) =>
-    request<import('./types').UserResponse>(`/admin/users/${id}/suspend`, {
-      method: 'PATCH',
+    request<import("./types").UserResponse>(`/admin/users/${id}/suspend`, {
+      method: "PATCH",
     }),
 
-  getStats: () =>
-    request<import('./types').AdminStats>('/admin/stats'),
+  getStats: () => request<import("./types").AdminStats>("/admin/stats"),
 
-  getAllPairs: () =>
-    request<import('./types').PairResponse[]>('/pairs'),
+  getAllPairs: () => request<import("./types").PairResponse[]>("/pairs"),
 
   createPair: (base_asset: string, quote_asset: string) =>
-    request<import('./types').PairResponse>('/pairs', {
-      method: 'POST',
+    request<import("./types").PairResponse>("/pairs", {
+      method: "POST",
       body: JSON.stringify({ base_asset, quote_asset }),
     }),
 
-  getAssets: () =>
-    request<import('./types').AssetResponse[]>('/assets'),
+  getAssets: () => request<import("./types").AssetResponse[]>("/assets"),
 
   createAsset: (symbol: string, name: string) =>
-    request<import('./types').AssetResponse>('/assets', {
-      method: 'POST',
+    request<import("./types").AssetResponse>("/assets", {
+      method: "POST",
       body: JSON.stringify({ symbol, name }),
     }),
-}
+};

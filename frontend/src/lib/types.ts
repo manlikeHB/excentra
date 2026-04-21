@@ -24,6 +24,7 @@ export type PriceLevel = S['PriceLevel']
 export type PaginatedOrderResponse = S['PaginatedResponse_OrderResponse']
 export type PaginatedUserTradeResponse = S['PaginatedResponse_UserTradeResponse']
 export type PaginatedUserSummary = S['PaginatedResponse_UserSummary']
+export type UserSummary = S['UserSummary']
 
 // — WebSocket types —
 export type WsEvent = S['WsEvent']
