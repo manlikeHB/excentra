@@ -43,63 +43,6 @@ async function refreshToken(): Promise<string | null> {
   return refreshPromise
 }
 
-// async function request<T>(
-//   path: string,
-//   options: RequestInit = {},
-//   retry = true
-// ): Promise<T> {
-//   const headers: Record<string, string> = {
-//     'Content-Type': 'application/json',
-//     ...(options.headers as Record<string, string>),
-//   }
-
-//   if (accessToken) {
-//     headers['Authorization'] = `Bearer ${accessToken}`
-//   }
-
-//   let res: Response
-//   try {
-//     res = await fetch(`${BASE_URL}${path}`, {
-//       ...options,
-//       headers,
-//       credentials: 'include',
-//     })
-//   } catch (err) {
-//     // Network-level failure (CORS blocked, backend unreachable, etc.)
-//     const msg = err instanceof TypeError
-//       ? `Cannot reach backend at ${BASE_URL}. Check that it is running and CORS is configured for http://localhost:3001.`
-//       : 'Network error'
-//     throw new Error(msg)
-//   }
-
-//   if (res.status === 401 && retry) {
-//     const newToken = await refreshToken()
-//     if (newToken) {
-//       return request<T>(path, options, false)
-//     } else {
-//       onRefreshFail?.()
-//       throw new Error('Unauthorized')
-//     }
-//   }
-
-//   if (!res.ok) {
-//     let errorMessage = `Request failed: ${res.status}`
-//     try {
-//       const errData = await res.json()
-//       errorMessage = errData.error || errorMessage
-//     } catch {
-//       // ignore parse errors
-//     }
-//     throw new Error(errorMessage)
-//   }
-
-//   if (res.status === 204) {
-//     return undefined as unknown as T
-//   }
-
-//   return res.json()
-// }
-
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -124,7 +67,7 @@ async function request<T>(
   } catch (err) {
     const msg =
       err instanceof TypeError
-        ? `Cannot reach backend at ${BASE_URL}. Check that it is running and CORS is configured for http://localhost:3001.` //TODO 
+        ? `Cannot reach backend at ${BASE_URL}. Check that it is running and CORS is configured for ${window.location.origin}.`
         : "Network error";
     throw new Error(msg);
   }
@@ -134,8 +77,15 @@ async function request<T>(
     if (newToken) {
       return request<T>(path, options, false);
     } else {
+      let message = "Unauthorized";
+      try {
+        const errData = await res.json();
+        message = errData.error ?? message;
+      } catch {
+        // body not parseable, keep default
+      }
       onRefreshFail?.();
-      throw new Error("Unauthorized");
+      throw new Error(message);
     }
   }
 
