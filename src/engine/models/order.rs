@@ -40,6 +40,7 @@ pub struct Order {
 }
 
 impl Order {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: Uuid,
         user_id: Uuid,

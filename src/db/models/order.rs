@@ -5,7 +5,15 @@ use uuid::Uuid;
 use crate::engine::models::order::{Order, OrderSide, OrderStatus, OrderType};
 
 #[derive(
-    Debug, Clone, Copy, sqlx::Type, serde::Deserialize, serde::Serialize, utoipa::ToSchema,
+    Debug,
+    Clone,
+    Copy,
+    sqlx::Type,
+    serde::Deserialize,
+    serde::Serialize,
+    utoipa::ToSchema,
+    PartialEq,
+    Eq,
 )]
 #[sqlx(type_name = "order_side", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
@@ -33,7 +41,15 @@ pub enum DBOrderType {
 }
 
 #[derive(
-    Debug, Clone, Copy, sqlx::Type, serde::Deserialize, serde::Serialize, utoipa::ToSchema,
+    Debug,
+    Clone,
+    Copy,
+    sqlx::Type,
+    serde::Deserialize,
+    serde::Serialize,
+    utoipa::ToSchema,
+    PartialEq,
+    Eq,
 )]
 #[sqlx(type_name = "order_status", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
@@ -67,12 +83,12 @@ impl From<Order> for DBOrder {
             id: order.id(),
             user_id: order.user_id(),
             pair_id: order.pair_id(),
-            side: order.side().clone().into(),
-            order_type: order.order_type().clone().into(),
+            side: (*order.side()).into(),
+            order_type: order.order_type().into(),
             price: order.price(),
             quantity: order.quantity(),
             remaining_quantity: order.remaining_quantity(),
-            status: order.status().clone().into(),
+            status: order.status().into(),
             created_at: order.created_at(),
             updated_at: order.updated_at(),
         }

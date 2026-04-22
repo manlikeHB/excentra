@@ -77,11 +77,11 @@ impl AssetSymbol {
     }
 
     pub fn base_asset(&self) -> &str {
-        &self.0.split("/").collect::<Vec<&str>>()[0]
+        self.0.split("/").collect::<Vec<&str>>()[0]
     }
 
     pub fn quote_asset(&self) -> &str {
-        &self.0.split("/").collect::<Vec<&str>>()[1]
+        self.0.split("/").collect::<Vec<&str>>()[1]
     }
 
     fn validate(symbol: &str, pat: SymbolPattern) -> Result<(), AssetSymbolError> {

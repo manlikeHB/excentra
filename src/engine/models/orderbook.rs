@@ -60,19 +60,13 @@ impl OrderBook {
             None => return Err(EngineError::MissingPrice),
         };
 
-        self.index.insert(order.id(), (price, order.side().clone()));
+        self.index.insert(order.id(), (price, *order.side()));
         match order.side() {
             order::OrderSide::Buy => {
-                self.bids
-                    .entry(price)
-                    .or_insert_with(VecDeque::new)
-                    .push_back(order);
+                self.bids.entry(price).or_default().push_back(order);
             }
             order::OrderSide::Sell => {
-                self.asks
-                    .entry(price)
-                    .or_insert_with(VecDeque::new)
-                    .push_back(order);
+                self.asks.entry(price).or_default().push_back(order);
             }
         }
 
@@ -90,16 +84,16 @@ impl OrderBook {
             order::OrderSide::Sell => &mut self.asks,
         };
 
-        if let Some(orders) = book.get_mut(&price) {
-            if let Some(pos) = orders.iter().position(|o| o.id() == *order_id) {
-                let order = orders.remove(pos).unwrap(); // safe: pos came from position()
+        if let Some(orders) = book.get_mut(&price)
+            && let Some(pos) = orders.iter().position(|o| o.id() == *order_id)
+        {
+            let order = orders.remove(pos).unwrap(); // safe: pos came from position()
 
-                if orders.is_empty() {
-                    book.remove(&price);
-                }
-
-                return Ok(order);
+            if orders.is_empty() {
+                book.remove(&price);
             }
+
+            return Ok(order);
         }
 
         Err(EngineError::InconsistentState)
@@ -138,7 +132,7 @@ impl OrderBook {
                     self.bids
                         .entry(incoming_price)
                         .or_default()
-                        .push_back(order.clone());
+                        .push_back(*order);
                 }
                 OrderSide::Sell => {
                     self.index
@@ -146,7 +140,7 @@ impl OrderBook {
                     self.asks
                         .entry(incoming_price)
                         .or_default()
-                        .push_back(order.clone());
+                        .push_back(*order);
                 }
             }
         }
@@ -378,5 +372,11 @@ impl OrderBookSnapshot {
 
     pub fn asks(&self) -> Vec<PriceLevel> {
         self.asks.clone()
+    }
+}
+
+impl Default for OrderBook {
+    fn default() -> Self {
+        Self::new()
     }
 }

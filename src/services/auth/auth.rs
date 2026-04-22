@@ -10,8 +10,11 @@ pub struct AuthService {
 }
 
 impl AuthService {
-    pub fn new(pool: PgPool, jwt_secret: String) -> Self {
-        AuthService { pool, jwt_secret }
+    pub fn new(pool: PgPool, jwt_secret: &str) -> Self {
+        AuthService {
+            pool,
+            jwt_secret: jwt_secret.to_string(),
+        }
     }
 
     pub async fn register_user(

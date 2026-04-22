@@ -18,7 +18,7 @@ pub struct PlaceOrderRequest {
     pub quantity: Decimal,
 }
 
-#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[derive(Debug, serde::Serialize, utoipa::ToSchema, serde::Deserialize)]
 pub struct PlaceOrderResponse {
     pub order_id: Uuid,
     pub status: DBOrderStatus,
@@ -27,7 +27,7 @@ pub struct PlaceOrderResponse {
     pub trades: Vec<TradeInfo>,
 }
 
-#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[derive(Debug, serde::Serialize, utoipa::ToSchema, serde::Deserialize)]
 pub struct TradeInfo {
     pub price: Decimal,
     pub quantity: Decimal,
@@ -100,7 +100,7 @@ impl From<OrderRequestValidationError> for AppError {
     }
 }
 
-#[derive(Debug, sqlx::FromRow, serde::Serialize, utoipa::ToSchema)]
+#[derive(Debug, sqlx::FromRow, serde::Serialize, utoipa::ToSchema, serde::Deserialize)]
 pub struct OrderResponse {
     pub id: Uuid,
     pub symbol: String,

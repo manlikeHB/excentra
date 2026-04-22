@@ -167,9 +167,9 @@ impl OrderService {
             Some(pair) => Ok(pair),
             None => {
                 tracing::warn!(pair = %symbol, "Unsupported trading pair");
-                return Err(AppError::Unprocessable(
+                Err(AppError::Unprocessable(
                     "Invalid or unsupported trading pair".to_string(),
-                ));
+                ))
             }
         }
     }
@@ -246,10 +246,10 @@ impl OrderService {
             Some(bal) => {
                 if bal.available < amount {
                     tracing::warn!(asset = %bal.asset, user_id = %user_id, "Insufficient available balance for");
-                    return Err(AppError::Unprocessable(format!(
+                    Err(AppError::Unprocessable(format!(
                         "Insufficient available {} balance",
                         bal.asset
-                    )));
+                    )))
                 } else {
                     // hold base asset
                     db_queries::hold(&self.pool, user_id, asset, amount).await?;
@@ -259,10 +259,10 @@ impl OrderService {
             }
             None => {
                 tracing::warn!(asset = %asset, user_id = %user_id, "Insufficient available balance for");
-                return Err(AppError::Unprocessable(format!(
+                Err(AppError::Unprocessable(format!(
                     "Insufficient available {} balance",
                     asset
-                )));
+                )))
             }
         }
     }
@@ -354,17 +354,14 @@ impl OrderService {
         }
 
         // release unspent budget for a market buy order
-        match (order.order_type(), order.side()) {
-            (OrderType::Market, OrderSide::Buy) => {
-                let unspent = order.remaining_quantity();
-                if unspent > Decimal::ZERO {
-                    db_queries::release(&mut *tx, order.user_id(), &symbol.quote_asset(), unspent)
-                        .await?;
+        if let (OrderType::Market, OrderSide::Buy) = (order.order_type(), order.side()) {
+            let unspent = order.remaining_quantity();
+            if unspent > Decimal::ZERO {
+                db_queries::release(&mut *tx, order.user_id(), symbol.quote_asset(), unspent)
+                    .await?;
 
-                    tracing::info!(order_id = %order.id(), user_id = %order.user_id(), amount = %unspent, "Release unspent balance");
-                }
+                tracing::info!(order_id = %order.id(), user_id = %order.user_id(), amount = %unspent, "Release unspent balance");
             }
-            (_, _) => (),
         }
 
         tx.commit().await?;
@@ -389,7 +386,7 @@ impl OrderService {
 
         let ws_event = WsEvent::OrderBook {
             symbol: symbol.as_str().to_string(),
-            snapshot: snapshot,
+            snapshot,
         };
         let _ = self.ws_sender.send(ws_event);
 
@@ -510,7 +507,7 @@ impl OrderService {
 
         let ws_event = WsEvent::OrderBook {
             symbol: trading_pair.symbol.clone(),
-            snapshot: snapshot,
+            snapshot,
         };
         let _ = self.ws_sender.send(ws_event);
 

@@ -23,6 +23,7 @@ use crate::{
     api::types::AppState,
     ws::messages::{Channel, InboundMessage, OutboundMessage, WsEvent},
 };
+use std::str::FromStr;
 
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
@@ -206,11 +207,8 @@ async fn write_task(
         tokio::select! {
             // expect msg from error_tx in read task
             Some(msg) = error_rx.recv() => {
-                match serde_json::to_string(&msg) {
-                    Ok(json) => {
-                        let _ = sender.send(Message::Text(json.into())).await;
-                    }
-                    Err(_) => {}
+                if let Ok(json) = serde_json::to_string(&msg) {
+                    let _ = sender.send(Message::Text(json.into())).await;
                 }
             }
             // expected events from broadcast
@@ -238,11 +236,8 @@ async fn write_task(
 
                         if should_send {
                             let msg = OutboundMessage::Event { data: event };
-                            match serde_json::to_string(&msg) {
-                                Ok(json) => {
-                                    let _ = sender.send(Message::Text(json.into())).await;
-                                }
-                                Err(_) => {}
+                            if let Ok(json) = serde_json::to_string(&msg) {
+                                let _ = sender.send(Message::Text(json.into())).await;
                             }
                         }
                     }

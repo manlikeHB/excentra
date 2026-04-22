@@ -66,6 +66,7 @@ where
     sqlx::query_as!(DBBalance, r#"UPDATE balances SET available = available + $3, held = held - $3, updated_at = NOW() WHERE user_id = $1 AND asset = $2 AND held >= $3 RETURNING id, user_id, asset, available, held, updated_at"#, user_id, asset, amount).fetch_one(executor).await
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn transfer_on_fill(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     buyer_id: Uuid,

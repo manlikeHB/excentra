@@ -6,6 +6,7 @@ use crate::{
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use std::fmt;
+use std::str::FromStr;
 use uuid::Uuid;
 
 #[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
@@ -64,8 +65,10 @@ pub enum Channel {
     Orders(Uuid), // protected
 }
 
-impl Channel {
-    pub fn from_str(channel: &str) -> Result<Self, String> {
+impl FromStr for Channel {
+    type Err = String;
+
+    fn from_str(channel: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = channel.splitn(2, ":").collect();
         if parts.len() != 2 {
             tracing::warn!(channel = %channel, "Invalid ws channel");
@@ -87,7 +90,7 @@ impl Channel {
                     .map_err(|_| format!("Invalid user ID in orders channel: {}", parts[1]))?;
                 Ok(Channel::Orders(user_id))
             }
-            _ => return Err("Unsupported Channel".to_string()),
+            _ => Err("Unsupported Channel".to_string()),
         }
     }
 }

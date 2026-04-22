@@ -60,6 +60,12 @@ impl RateLimiter {
     }
 }
 
+impl Default for RateLimiter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

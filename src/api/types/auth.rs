@@ -16,7 +16,7 @@ pub struct LoginRequest {
     pub password: String,
 }
 
-#[derive(serde::Serialize, utoipa::ToSchema)]
+#[derive(serde::Serialize, utoipa::ToSchema, serde::Deserialize)]
 pub struct LoginResponse {
     pub access_token: String,
 }

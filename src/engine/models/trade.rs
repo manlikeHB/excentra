@@ -19,6 +19,7 @@ pub struct Trade {
 }
 
 impl Trade {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         pair_id: Uuid,
         buyer_id: Uuid,

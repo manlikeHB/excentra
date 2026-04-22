@@ -64,3 +64,9 @@ impl Exchange {
         Ok(book)
     }
 }
+
+impl Default for Exchange {
+    fn default() -> Self {
+        Self::new()
+    }
+}

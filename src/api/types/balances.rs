@@ -19,7 +19,7 @@ impl BalanceRequest {
     }
 }
 
-#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[derive(Debug, serde::Serialize, utoipa::ToSchema, serde::Deserialize)]
 pub struct BalanceResponse {
     pub asset: String,
     pub available: Decimal,

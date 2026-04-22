@@ -11,7 +11,7 @@ use crate::{
     utils::query_builder::QueryOrder,
 };
 
-#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+#[derive(Debug, serde::Serialize, utoipa::ToSchema, serde::Deserialize, Clone)]
 pub struct TradeResponse {
     pub id: Uuid,
     pub symbol: String,

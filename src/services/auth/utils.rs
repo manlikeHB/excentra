@@ -29,7 +29,7 @@ pub fn create_token(user_id: Uuid, role: UserRole, secret: &str) -> Result<Strin
 
 pub fn verify_token(token: &str, secret: &str) -> Result<Claims, Error> {
     let claims = decode::<Claims>(
-        &token,
+        token,
         &DecodingKey::from_secret(secret.as_ref()),
         &Validation::new(Algorithm::HS256),
     )?

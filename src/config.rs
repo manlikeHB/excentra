@@ -39,4 +39,32 @@ impl Config {
             frontend_url,
         }
     }
+
+    // #[cfg(test)]
+    pub fn test_config() -> Config {
+        let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+            "postgres://postgres:password@localhost:5432/excentra_test".to_string()
+        });
+        let jwt_secret = "some-strong-secret".to_string();
+        let api_version = "v1".to_string();
+        let port = "5098".to_string();
+        let base_url = format!("/api/{}", api_version);
+
+        let smtp_host = "localhost".to_string();
+        let smtp_port = 1025;
+        let smtp_from = "noreply@excentra.local".to_string();
+        let frontend_url = "http://localhost:3000".to_string();
+
+        Config {
+            database_url: db_url,
+            jwt_secret,
+            api_version,
+            port,
+            base_url,
+            smtp_host,
+            smtp_port,
+            smtp_from,
+            frontend_url,
+        }
+    }
 }

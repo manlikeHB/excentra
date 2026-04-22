@@ -14,9 +14,7 @@ pub fn get_ticker_helper(stat: &TradeStat) -> Option<Ticker> {
     };
 
     // use baseline if available, fall back to oldest trade in window
-    let Some(baseline_price) = stat.baseline_price.or(stat.oldest_price) else {
-        return None;
-    };
+    let baseline_price = stat.baseline_price.or(stat.oldest_price)?;
 
     let price_change_pct = (last_price - baseline_price) / baseline_price * Decimal::ONE_HUNDRED;
 

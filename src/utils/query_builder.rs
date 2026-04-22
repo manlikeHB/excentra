@@ -36,7 +36,7 @@ pub async fn apply_pair_filter<'q>(
     table: &str,
 ) -> Result<(), AppError> {
     if let Some(p) = pair {
-        let symbol = AssetSymbol::from_path(&p)?;
+        let symbol = AssetSymbol::from_path(p)?;
         if let Some(pair_id) = db_queries::find_by_symbol(pool, symbol.as_str()).await? {
             builder.push(format!(" AND {}.pair_id = ", table));
             builder.push_bind(pair_id.id);
