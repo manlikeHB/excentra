@@ -79,6 +79,22 @@ impl AuthService {
             }
         };
 
+        // Reuse detection — token exists but was already used
+        // This means someone is replaying an old token, likely theft
+        if db_refresh_token.used_at.is_some() {
+            tracing::warn!(
+                user_id = %db_refresh_token.user_id,
+                "Refresh token reuse detected — possible token theft, invalidating all sessions"
+            );
+            // invalidate ALL tokens for this user
+            db_queries::delete_all_user_refresh_tokens(&self.pool, db_refresh_token.user_id)
+                .await?;
+            return Err(AppError::Unauthorized(
+                "Session invalidated, please log in again".to_string(),
+            ));
+        }
+
+        // Check expiry
         if chrono::Utc::now() > db_refresh_token.expires_at {
             db_queries::delete_refresh_token(&self.pool, &db_refresh_token.token_hash).await?;
             return Err(AppError::Unauthorized(
@@ -95,19 +111,20 @@ impl AuthService {
             }
         };
 
+        let old_token_hash = db_refresh_token.token_hash.clone();
+
         let access_token = create_token(user.id, user.role, &self.jwt_secret)?;
         let refresh_token = random_token::generate_token();
         let token_hash = random_token::hash_token(&refresh_token);
         let expires_at = chrono::Utc::now() + chrono::Duration::days(7);
 
-        tracing::info!(user_id = %user_id, "Token refreshed");
-
-        // delete old token
-        db_queries::delete_refresh_token(&self.pool, &db_refresh_token.token_hash).await?;
+        // Mark current token as used to detect reuse attempts
+        db_queries::mark_refresh_token_used(&self.pool, &old_token_hash).await?;
 
         // create new one
         db_queries::create_refresh_token(&self.pool, user.id, &token_hash, expires_at).await?;
 
+        tracing::info!(user_id = %user_id, "Token refreshed");
         Ok((access_token, refresh_token))
     }
 

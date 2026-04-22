@@ -39,6 +39,7 @@ use axum::{
     routing::{delete, get, patch, post},
 };
 use sqlx::PgPool;
+use std::time::Duration;
 use std::{
     sync::{Arc, atomic::AtomicU64},
     time::Instant,
@@ -202,6 +203,18 @@ pub async fn build_app(
         let price_seed_service =
             PriceSeedService::new(pool.clone(), exchange.clone(), reqwest::Client::new());
         price_seed_service.seed_prices().await?;
+
+        // delete stale refresh tokens
+        let stale_refresh_pool = pool.clone();
+        tokio::spawn(async move {
+            loop {
+                match db_queries::delete_all_stale_refresh_tokens(&stale_refresh_pool).await {
+                    Ok(count) => tracing::info!(deleted = count, "Stale refresh tokens deleted"),
+                    Err(e) => tracing::error!(error = %e, "Failed to delete stale refresh tokens"),
+                }
+                tokio::time::sleep(Duration::from_secs(24 * 60 * 60)).await; // every 24 hours
+            }
+        });
     }
 
     Ok(app)
