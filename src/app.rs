@@ -1,4 +1,5 @@
 use crate::api::middleware::rate_limit::RateLimiter;
+use crate::api::middleware::request_id::request_id_middleware;
 use crate::{
     api::{
         handlers::{
@@ -32,6 +33,7 @@ use crate::{
     },
 };
 use axum::http::{HeaderValue, Method, header};
+use axum::middleware;
 use axum::{
     Json, Router,
     routing::{delete, get, patch, post},
@@ -186,6 +188,7 @@ pub async fn build_app(
         .route("/health", get(health))
         .route("/ws", get(ws_handler))
         .with_state(shared_state.clone())
+        .layer(middleware::from_fn(request_id_middleware))
         .layer(TraceLayer::new_for_http())
         .layer(cors);
 
