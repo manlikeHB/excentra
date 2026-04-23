@@ -40,7 +40,7 @@ pub async fn deposit(
     state
         .rate_limiter
         .check(user_id.to_string(), &policies::DEPOSIT)?;
-    body.validate()?;
+    body.validate_deposit()?;
     let asset = &body.asset.trim().to_uppercase();
 
     let bal = state
