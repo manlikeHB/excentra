@@ -21,7 +21,7 @@ impl PasswordResetService {
     ) -> Self {
         PasswordResetService {
             pool,
-            resend_api_key: resend_api_key,
+            resend_api_key,
             from_address: from_address.to_string(),
             frontend_url: frontend_url.to_string(),
         }
