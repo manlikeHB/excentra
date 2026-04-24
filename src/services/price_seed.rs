@@ -114,19 +114,22 @@ impl PriceSeedService {
     }
 
     async fn seed_order_book(&self, pair: &DBTradingPair, price: Decimal) -> Result<(), AppError> {
-        let spread = dec!(0.001); // 0.1% spread
+        let (spread, levels, base_qty) = match pair.base_asset.as_str() {
+            "BTC" => (dec!(0.001), 5, dec!(0.1)),
+            "ETH" => (dec!(0.001), 5, dec!(1.5)),
+            "SOL" => (dec!(0.002), 8, dec!(15.0)),
+            _ => (dec!(0.001), 3, dec!(1.0)),
+        };
 
-        let bids = vec![
-            (price * (Decimal::ONE - spread), dec!(0.5)),
-            (price * (Decimal::ONE - spread * dec!(2)), dec!(1.0)),
-            (price * (Decimal::ONE - spread * dec!(3)), dec!(2.0)),
-        ];
+        let mut bids = vec![];
+        let mut asks = vec![];
 
-        let asks = vec![
-            (price * (Decimal::ONE + spread), dec!(0.5)),
-            (price * (Decimal::ONE + spread * dec!(2)), dec!(1.0)),
-            (price * (Decimal::ONE + spread * dec!(3)), dec!(2.0)),
-        ];
+        for i in 1..=levels {
+            let i_dec = Decimal::from(i);
+            let qty = base_qty * i_dec;
+            bids.push((price * (Decimal::ONE - spread * i_dec), qty));
+            asks.push((price * (Decimal::ONE + spread * i_dec), qty));
+        }
 
         let mut tx = self.pool.begin().await?;
 
