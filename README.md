@@ -8,6 +8,16 @@ Excentra is a full-stack centralized exchange built in Rust. It features a custo
 
 ---
 
+## Live Demo
+
+| | URL |
+|---|---|
+| **Exchange** | [excentra.exchange](https://excentra.exchange) |
+| **API Docs** | [api.excentra.exchange/docs](https://api.excentra.exchange/docs) |
+| **Health** | [api.excentra.exchange/health](https://api.excentra.exchange/health) |
+
+---
+
 ## Features
 
 **Trading Engine**
@@ -212,7 +222,6 @@ docker compose up
 Services started:
 - **API** → `http://localhost:5098`
 - **Frontend** → `http://localhost:3000`
-- **Mailpit** (local email UI) → `http://localhost:8025`
 - **PostgreSQL** → `localhost:5433`
 
 Migrations run automatically on first start. The order book is seeded with live prices from CoinGecko.
