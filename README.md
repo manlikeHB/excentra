@@ -187,6 +187,15 @@ backends in the future.
 
 ---
 
+### Deposit Cap
+
+All asset deposits are capped per transaction.
+This is intentional — Excentra is a simulated exchange with no real funds.
+The cap prevents unrealistic balances that would skew the order book,
+and guards against overflow from extreme values like `i128::MAX` or `Decimal::MAX`.
+
+---
+
 ## Getting Started
 
 ### Option A — Docker (recommended)

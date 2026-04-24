@@ -67,7 +67,7 @@ async fn test_full_order_flow() {
             header::AUTHORIZATION,
             format!("Bearer {}", buyer_access_token),
         )
-        .json(&json!({"asset": "USDT", "amount": "10000"}))
+        .json(&json!({"asset": "USDT", "amount": "1000"}))
         .await
         .assert_status_ok();
 
@@ -78,22 +78,22 @@ async fn test_full_order_flow() {
             header::AUTHORIZATION,
             format!("Bearer {}", seller_access_token),
         )
-        .json(&json!({"asset": "BTC", "amount": "1"}))
+        .json(&json!({"asset": "BTC", "amount": "0.05"}))
         .await
         .assert_status_ok();
 
     // Buyer places limit buy
-    let res = server.post("/api/v1/orders").add_header(header::AUTHORIZATION, format!("Bearer {}", buyer_access_token)).json(&json!({"symbol": "BTC/USDT", "side": "buy", "order_type": "limit", "price": "50000", "quantity": "0.1"})).await.assert_status_ok().json::<PlaceOrderResponse>();
+    let res = server.post("/api/v1/orders").add_header(header::AUTHORIZATION, format!("Bearer {}", buyer_access_token)).json(&json!({"symbol": "BTC/USDT", "side": "buy", "order_type": "limit", "price": "50000", "quantity": "0.01"})).await.assert_status_ok().json::<PlaceOrderResponse>();
     assert_eq!(res.status, DBOrderStatus::Open);
     assert_eq!(res.filled_quantity, Decimal::ZERO);
-    assert_eq!(res.remaining_quantity, dec!(0.1));
+    assert_eq!(res.remaining_quantity, dec!(0.01));
     assert_eq!(res.trades.len(), 0_usize);
 
     // Seller places matching limit sell
-    let res =  server.post("/api/v1/orders").add_header(header::AUTHORIZATION, format!("Bearer {}", seller_access_token)).json(&json!({"symbol": "BTC/USDT", "side": "sell", "order_type": "limit", "price": "50000", "quantity": "0.5"})).await.assert_status_ok().json::<PlaceOrderResponse>();
+    let res =  server.post("/api/v1/orders").add_header(header::AUTHORIZATION, format!("Bearer {}", seller_access_token)).json(&json!({"symbol": "BTC/USDT", "side": "sell", "order_type": "limit", "price": "50000", "quantity": "0.05"})).await.assert_status_ok().json::<PlaceOrderResponse>();
     assert_eq!(res.status, DBOrderStatus::PartiallyFilled);
-    assert_eq!(res.filled_quantity, dec!(0.1));
-    assert_eq!(res.remaining_quantity, dec!(0.4));
+    assert_eq!(res.filled_quantity, dec!(0.01));
+    assert_eq!(res.remaining_quantity, dec!(0.04));
     assert_eq!(res.trades.len(), 1_usize);
 
     // Assert trade exists
@@ -104,7 +104,7 @@ async fn test_full_order_flow() {
         .clone();
     assert_eq!(trade.symbol, "BTC/USDT".to_string());
     assert_eq!(trade.price, dec!(50000));
-    assert_eq!(trade.quantity, dec!(0.1));
+    assert_eq!(trade.quantity, dec!(0.01));
     assert_eq!(trade.taker_side, DBOrderSide::Sell);
 
     // verify buyer's balance
@@ -117,7 +117,7 @@ async fn test_full_order_flow() {
         .await
         .json::<BalanceResponse>();
     assert_eq!(btc_balance.asset, "BTC");
-    assert_eq!(btc_balance.available, dec!(0.1));
+    assert_eq!(btc_balance.available, dec!(0.01));
     assert_eq!(btc_balance.held, dec!(0));
 
     let usdt_balance = server
@@ -129,7 +129,7 @@ async fn test_full_order_flow() {
         .await
         .json::<BalanceResponse>();
     assert_eq!(usdt_balance.asset, "USDT");
-    assert_eq!(usdt_balance.available, dec!(5000));
+    assert_eq!(usdt_balance.available, dec!(500));
     assert_eq!(usdt_balance.held, dec!(0));
 
     // verify seller balance
@@ -142,8 +142,8 @@ async fn test_full_order_flow() {
         .await
         .json::<BalanceResponse>();
     assert_eq!(btc_balance.asset, "BTC");
-    assert_eq!(btc_balance.available, dec!(0.5));
-    assert_eq!(btc_balance.held, dec!(0.4));
+    assert_eq!(btc_balance.available, dec!(0.0));
+    assert_eq!(btc_balance.held, dec!(0.04));
 
     let usdt_balance = server
         .get("/api/v1/balances/USDT")
@@ -154,7 +154,7 @@ async fn test_full_order_flow() {
         .await
         .json::<BalanceResponse>();
     assert_eq!(usdt_balance.asset, "USDT");
-    assert_eq!(usdt_balance.available, dec!(5000));
+    assert_eq!(usdt_balance.available, dec!(500));
     assert_eq!(usdt_balance.held, dec!(0));
 }
 
@@ -190,15 +190,15 @@ async fn test_cancel_order_flow() {
             header::AUTHORIZATION,
             format!("Bearer {}", buyer_access_token),
         )
-        .json(&json!({"asset": "USDT", "amount": "10000"}))
+        .json(&json!({"asset": "USDT", "amount": "1000"}))
         .await
         .assert_status_ok();
 
     // Buyer places limit buy
-    let res = server.post("/api/v1/orders").add_header(header::AUTHORIZATION, format!("Bearer {}", buyer_access_token)).json(&json!({"symbol": "BTC/USDT", "side": "buy", "order_type": "limit", "price": "50000", "quantity": "0.1"})).await.assert_status_ok().json::<PlaceOrderResponse>();
+    let res = server.post("/api/v1/orders").add_header(header::AUTHORIZATION, format!("Bearer {}", buyer_access_token)).json(&json!({"symbol": "BTC/USDT", "side": "buy", "order_type": "limit", "price": "50000", "quantity": "0.01"})).await.assert_status_ok().json::<PlaceOrderResponse>();
     assert_eq!(res.status, DBOrderStatus::Open);
     assert_eq!(res.filled_quantity, Decimal::ZERO);
-    assert_eq!(res.remaining_quantity, dec!(0.1));
+    assert_eq!(res.remaining_quantity, dec!(0.01));
     assert_eq!(res.trades.len(), 0_usize);
 
     // verify usdt balance before
@@ -211,8 +211,8 @@ async fn test_cancel_order_flow() {
         .await
         .json::<BalanceResponse>();
     assert_eq!(usdt_balance_before.asset, "USDT");
-    assert_eq!(usdt_balance_before.available, dec!(5000));
-    assert_eq!(usdt_balance_before.held, dec!(5000));
+    assert_eq!(usdt_balance_before.available, dec!(500));
+    assert_eq!(usdt_balance_before.held, dec!(500));
 
     // cancel order
     let cancel_order_response = server
@@ -237,7 +237,7 @@ async fn test_cancel_order_flow() {
         .await
         .json::<BalanceResponse>();
     assert_eq!(usdt_balance_after.asset, "USDT");
-    assert_eq!(usdt_balance_after.available, dec!(10000));
+    assert_eq!(usdt_balance_after.available, dec!(1000));
     assert_eq!(usdt_balance_after.held, dec!(0));
 }
 
@@ -306,14 +306,14 @@ async fn test_self_trade_prevention() {
     response.assert_status(StatusCode::OK);
     let buyer_access_token = response.json::<LoginResponse>().access_token;
 
-    // Deposit 10000 USDT for buyer
+    // Deposit 1000 USDT for buyer
     server
         .post("/api/v1/balances/deposit")
         .add_header(
             header::AUTHORIZATION,
             format!("Bearer {}", buyer_access_token),
         )
-        .json(&json!({"asset": "USDT", "amount": "10000"}))
+        .json(&json!({"asset": "USDT", "amount": "1000"}))
         .await
         .assert_status_ok();
 
@@ -324,17 +324,17 @@ async fn test_self_trade_prevention() {
             header::AUTHORIZATION,
             format!("Bearer {}", buyer_access_token),
         )
-        .json(&json!({"asset": "BTC", "amount": "1"}))
+        .json(&json!({"asset": "BTC", "amount": "0.05"}))
         .await
         .assert_status_ok();
 
     // Buyer places limit buy
-    let res = server.post("/api/v1/orders").add_header(header::AUTHORIZATION, format!("Bearer {}", buyer_access_token)).json(&json!({"symbol": "BTC/USDT", "side": "buy", "order_type": "limit", "price": "50000", "quantity": "0.1"})).await.assert_status_ok().json::<PlaceOrderResponse>();
+    let res = server.post("/api/v1/orders").add_header(header::AUTHORIZATION, format!("Bearer {}", buyer_access_token)).json(&json!({"symbol": "BTC/USDT", "side": "buy", "order_type": "limit", "price": "50000", "quantity": "0.005"})).await.assert_status_ok().json::<PlaceOrderResponse>();
     assert_eq!(res.status, DBOrderStatus::Open);
     assert_eq!(res.filled_quantity, Decimal::ZERO);
-    assert_eq!(res.remaining_quantity, dec!(0.1));
+    assert_eq!(res.remaining_quantity, dec!(0.005));
     assert_eq!(res.trades.len(), 0_usize);
 
     // Buyer places matching limit sell
-    server.post("/api/v1/orders").add_header(header::AUTHORIZATION, format!("Bearer {}", buyer_access_token)).json(&json!({"symbol": "BTC/USDT", "side": "sell", "order_type": "limit", "price": "50000", "quantity": "0.5"})).await.assert_status_bad_request();
+    server.post("/api/v1/orders").add_header(header::AUTHORIZATION, format!("Bearer {}", buyer_access_token)).json(&json!({"symbol": "BTC/USDT", "side": "sell", "order_type": "limit", "price": "50000", "quantity": "0.005"})).await.assert_status_bad_request();
 }
