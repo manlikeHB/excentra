@@ -103,9 +103,8 @@ pub async fn build_app(
         admin_service: AdminService::new(pool.clone()),
         password_reset_service: PasswordResetService::new(
             pool.clone(),
-            &config.smtp_host,
-            config.smtp_port,
-            &config.smtp_from,
+            config.resend_api_key.clone(),
+            &config.resend_from,
             &config.frontend_url,
         ),
         rate_limiter: Arc::new(RateLimiter::new()),

@@ -132,12 +132,6 @@ impl From<AssetSymbolError> for AppError {
     }
 }
 
-impl From<lettre::error::Error> for AppError {
-    fn from(_: lettre::error::Error) -> Self {
-        AppError::InternalError("Failed to build email".to_string())
-    }
-}
-
 impl From<RateLimitError> for AppError {
     fn from(value: RateLimitError) -> Self {
         match value {

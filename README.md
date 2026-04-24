@@ -27,7 +27,7 @@ Excentra is a full-stack centralized exchange built in Rust. It features a custo
 **Auth**
 - JWT access tokens + refresh token rotation via httpOnly cookies
 - argon2 password hashing
-- Password reset via email (SMTP)
+- Password reset via email (Resend)
 - Role-based access control (user / admin)
 
 **Admin**
@@ -238,9 +238,8 @@ JWT_SECRET=your-secret-key-here
 API_VERSION=v1
 PORT=5098
 RUST_LOG=info,tower_http=debug
-SMTP_HOST=localhost
-SMTP_PORT=1025
-SMTP_FROM=noreply@excentra.dev
+RESEND_API_KEY= // leave as is for Dev mode
+RESEND_FROM=noreply@excentra.exchange
 FRONTEND_URL=http://localhost:3000
 ```
 

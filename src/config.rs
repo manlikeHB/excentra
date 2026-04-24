@@ -4,9 +4,8 @@ pub struct Config {
     pub api_version: String,
     pub port: String,
     pub base_url: String,
-    pub smtp_host: String,
-    pub smtp_port: u16,
-    pub smtp_from: String,
+    pub resend_api_key: Option<String>, // Optional — None = dev mode
+    pub resend_from: String,
     pub frontend_url: String,
 }
 
@@ -19,12 +18,12 @@ impl Config {
         let port = std::env::var("PORT").expect("PORT should be set");
         let base_url = format!("/api/{}", api_version);
 
-        let smtp_host = std::env::var("SMTP_HOST").expect("SMTP_HOST should be set");
-        let smtp_port = std::env::var("SMTP_PORT")
-            .expect("SMTP_PORT should be set")
-            .parse::<u16>()
-            .expect("SMTP_PORT must be a valid port number");
-        let smtp_from = std::env::var("SMTP_FROM").expect("SMTP_FROM should be set");
+        let resend_api_key = std::env::var("RESEND_API_KEY")
+            .ok()
+            .filter(|s| !s.is_empty());
+        let resend_from = std::env::var("RESEND_FROM")
+            .unwrap_or_else(|_| "noreply@excentra.exchange".to_string());
+
         let frontend_url = std::env::var("FRONTEND_URL").expect("FRONTEND_URL should be set");
 
         Config {
@@ -33,9 +32,8 @@ impl Config {
             api_version,
             port,
             base_url,
-            smtp_host,
-            smtp_port,
-            smtp_from,
+            resend_api_key,
+            resend_from,
             frontend_url,
         }
     }
@@ -49,10 +47,6 @@ impl Config {
         let api_version = "v1".to_string();
         let port = "5098".to_string();
         let base_url = format!("/api/{}", api_version);
-
-        let smtp_host = "localhost".to_string();
-        let smtp_port = 1025;
-        let smtp_from = "noreply@excentra.local".to_string();
         let frontend_url = "http://localhost:3000".to_string();
 
         Config {
@@ -61,9 +55,8 @@ impl Config {
             api_version,
             port,
             base_url,
-            smtp_host,
-            smtp_port,
-            smtp_from,
+            resend_api_key: None, // dev mode
+            resend_from: "noreply@excentra.local".to_string(),
             frontend_url,
         }
     }

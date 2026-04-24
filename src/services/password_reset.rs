@@ -3,41 +3,28 @@ use sqlx::PgPool;
 use crate::services::auth::utils::hash_password;
 use crate::utils::random_token;
 use crate::{db::queries as db_queries, error::AppError};
-use lettre::{Message, SmtpTransport, Transport};
+use resend_rs::{Resend, types::CreateEmailBaseOptions};
 
 pub struct PasswordResetService {
     pool: PgPool,
-    smtp_config: SMTPConfig,
-}
-
-pub struct SMTPConfig {
-    host: String,
-    port: u16,
+    resend_api_key: Option<String>,
     from_address: String,
     frontend_url: String,
-}
-
-impl SMTPConfig {
-    fn new(host: &str, port: u16, from_address: &str, frontend_url: &str) -> Self {
-        SMTPConfig {
-            host: host.to_string(),
-            port,
-            from_address: from_address.to_string(),
-            frontend_url: frontend_url.to_string(),
-        }
-    }
 }
 
 impl PasswordResetService {
     pub fn new(
         pool: PgPool,
-        host: &str,
-        port: u16,
+        resend_api_key: Option<String>,
         from_address: &str,
         frontend_url: &str,
     ) -> Self {
-        let smtp_config = SMTPConfig::new(host, port, from_address, frontend_url);
-        PasswordResetService { pool, smtp_config }
+        PasswordResetService {
+            pool,
+            resend_api_key: resend_api_key,
+            from_address: from_address.to_string(),
+            frontend_url: frontend_url.to_string(),
+        }
     }
 
     pub async fn request_reset(&self, email: &str) -> Result<(), AppError> {
@@ -53,34 +40,48 @@ impl PasswordResetService {
         let token_hash = random_token::hash_token(&token);
         let expires_at = chrono::Utc::now() + chrono::Duration::minutes(15);
 
-        // store token hash
         db_queries::create_reset_token(&self.pool, user.id, &token_hash, expires_at).await?;
 
-        let message = Message::builder()
-            .from(self.smtp_config.from_address.parse().map_err(|e| {
-                tracing::error!(error = %e, "Invalid sender address in SMTP config");
-                AppError::InternalError("Invalid sender address configuration".to_string())
-            })?)
-            .to(email.parse().map_err(|e| {
-                tracing::warn!(error = %e, "Invalid email address provided for password reset");
-                AppError::BadRequest("Invalid email address".to_string())
-            })?)
-            .subject("Password Reset")
-            .body(format!(
-                "{}/reset-password?token={}",
-                &self.smtp_config.frontend_url, token
-            ))?;
+        let reset_url = format!("{}/reset-password?token={}", self.frontend_url, token);
 
-        // TODO: replace with TLS transport + auth credentials for production
-        let mailer = SmtpTransport::builder_dangerous(&self.smtp_config.host)
-            .port(self.smtp_config.port)
-            .build();
+        match &self.resend_api_key {
+            Some(api_key) => {
+                self.send_via_resend(api_key, email, &reset_url).await?;
+            }
+            None => {
+                // Dev mode — log the reset URL instead of sending email
+                tracing::warn!(
+                    user_id = %user.id,
+                    reset_url = %reset_url,
+                    "DEV MODE: Password reset email not sent. Use this URL."
+                );
+            }
+        }
 
-        mailer
-            .send(&message)
-            .map_err(|_| AppError::InternalError("Failed to send email".to_string()))?;
+        tracing::info!(user_id = %user.id, "Password reset flow completed");
+        Ok(())
+    }
 
-        tracing::info!(user_id = %user.id, "Password reset email sent");
+    async fn send_via_resend(
+        &self,
+        api_key: &str,
+        to: &str,
+        reset_url: &str,
+    ) -> Result<(), AppError> {
+        let resend = Resend::new(api_key);
+
+        let email =
+            CreateEmailBaseOptions::new(&self.from_address, [to], "Reset your Excentra password")
+                .with_html(&format!(
+                    "<p>Click the link below to reset your password. It expires in 15 minutes.</p>\
+         <p><a href=\"{0}\">{0}</a></p>",
+                    reset_url
+                ));
+
+        resend.emails.send(email).await.map_err(|e| {
+            tracing::error!(error = %e, "Resend SDK error");
+            AppError::InternalError("Failed to send email".to_string())
+        })?;
 
         Ok(())
     }
@@ -89,7 +90,7 @@ impl PasswordResetService {
         let token_hash = random_token::hash_token(token);
 
         let reset_token = match db_queries::get_valid_reset_token(&self.pool, &token_hash).await? {
-            Some(reset_token) => reset_token,
+            Some(t) => t,
             None => {
                 tracing::warn!("Invalid or expired reset token");
                 return Err(AppError::BadRequest(
@@ -99,13 +100,10 @@ impl PasswordResetService {
         };
 
         let password_hash = hash_password(new_password)?;
-
         db_queries::update_password(&self.pool, reset_token.user_id, &password_hash).await?;
-
         db_queries::mark_reset_token_used(&self.pool, reset_token.id).await?;
 
         tracing::info!(user_id = %reset_token.user_id, "Password reset successful");
-
         Ok(())
     }
 }
