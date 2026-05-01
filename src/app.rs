@@ -28,8 +28,8 @@ use crate::{
     services::{
         admin::AdminService, assets::AssetService, auth::AuthService, balances::BalanceService,
         orderbook::OrderBookService, orders::OrderService, password_reset::PasswordResetService,
-        price_seed::PriceSeedService, ticker::TickerService, trades::TradeService,
-        trading_pair::TradingPairService, users::UserService,
+        ticker::TickerService, trades::TradeService, trading_pair::TradingPairService,
+        users::UserService,
     },
 };
 use axum::http::{HeaderValue, Method, header};
@@ -199,9 +199,9 @@ pub async fn build_app(
         });
 
         // seed price
-        let price_seed_service =
-            PriceSeedService::new(pool.clone(), exchange.clone(), reqwest::Client::new());
-        price_seed_service.seed_prices().await?;
+        // let price_seed_service =
+        //     PriceSeedService::new(pool.clone(), exchange.clone(), reqwest::Client::new());
+        // price_seed_service.seed_prices().await?;
 
         // delete stale refresh tokens
         let stale_refresh_pool = pool.clone();
