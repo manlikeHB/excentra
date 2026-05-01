@@ -2,7 +2,7 @@ use crate::api::middleware::rate_limit::rate_limit::RateLimitedRoute;
 
 pub const DEPOSIT: RateLimitedRoute = RateLimitedRoute {
     name: "POST balances/deposit",
-    max_requests: 10,
+    max_requests: 60,
     window_secs: 60 * 60, // 1 hour
 };
 
