@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { createChart, CandlestickSeries, IChartApi, ISeriesApi, CandlestickData, UTCTimestamp } from 'lightweight-charts'
-import { useRecentTrades } from '@/hooks/useRecentTrades'
+import { marketApi } from '@/lib/api'
 import { useWsContext } from '@/lib/context'
-import { WsEvent, Candle } from '@/lib/types'
+import { WsEvent, Candle, TradeResponse } from '@/lib/types'
+import { toPathSymbol } from '@/lib/symbols'
 import { cn } from '@/lib/utils'
 
 interface PriceChartProps {
@@ -20,6 +22,14 @@ const TIMEFRAMES: { label: string; key: TimeframeKey; seconds: number }[] = [
   { label: '1h', key: '1h', seconds: 3600 },
   { label: '1D', key: '1D', seconds: 86400 },
 ]
+
+const TIMEFRAME_LIMITS: Record<TimeframeKey, number> = {
+  '1m':  500,
+  '5m':  1500,
+  '15m': 3000,
+  '1h':  5000,
+  '1D':  10000,
+}
 
 function aggregateCandles(
   trades: { price: string; created_at: string }[],
@@ -59,15 +69,16 @@ export function PriceChart({ symbol }: PriceChartProps) {
   const chartRef = useRef<IChartApi | null>(null)
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
   const [timeframe, setTimeframe] = useState<TimeframeKey>('1m')
-  const trades = useRecentTrades(symbol)
   const { subscribe } = useWsContext()
-  const tradesRef = useRef(trades)
 
-  useEffect(() => {
-    tradesRef.current = trades
-  }, [trades])
-
+  const pathSymbol = toPathSymbol(symbol)
   const intervalSeconds = TIMEFRAMES.find((t) => t.key === timeframe)!.seconds
+
+  const { data: trades = [] } = useQuery<TradeResponse[]>({
+    queryKey: ['chart-trades', symbol, timeframe],
+    queryFn: () => marketApi.getTrades(pathSymbol, TIMEFRAME_LIMITS[timeframe]),
+    staleTime: 10_000,
+  })
 
   // Initialize chart
   useEffect(() => {
