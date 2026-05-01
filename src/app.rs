@@ -200,7 +200,7 @@ pub async fn build_app(
 
         // This originally seeded the orderbook with orders, but no longer needed
         // since excentra_pulse will be tasked with keeping the order book alive
-        
+
         // seed price
         // let price_seed_service =
         //     PriceSeedService::new(pool.clone(), exchange.clone(), reqwest::Client::new());
