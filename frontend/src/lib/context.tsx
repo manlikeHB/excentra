@@ -194,7 +194,6 @@ function WsProviderInner({ children }: { children: React.ReactNode }) {
 
           const callbacks = subscribersRef.current.get(channel)
           if (callbacks) {
-              console.log("[WS dispatch]", channel, "callbacks firing:", callbacks.size);
             callbacks.forEach((cb) => cb(data))
           }
         }
@@ -239,13 +238,6 @@ function WsProviderInner({ children }: { children: React.ReactNode }) {
   }, [connect])
 
   const subscribe = useCallback((channel: string, cb: WsCallback): (() => void) => {
-    console.log(
-      "[WS subscribe]",
-      channel,
-      "total subs for channel:",
-      (subscribersRef.current.get(channel)?.size ?? 0) + 1,
-    );
-
     if (!subscribersRef.current.has(channel)) {
       subscribersRef.current.set(channel, new Set());
     }
@@ -254,24 +246,18 @@ function WsProviderInner({ children }: { children: React.ReactNode }) {
     if (!channelsRef.current.has(channel)) {
       channelsRef.current.add(channel);
       if (wsRef.current?.readyState === WebSocket.OPEN) {
-        console.log("[WS send subscribe]", channel);
         wsRef.current.send(JSON.stringify({ action: "subscribe", channel }));
-      } else {
-        console.log("[WS subscribe queued — ws not open]", channel);
       }
     }
 
     return () => {
-      console.log("[WS unsubscribe]", channel);
       const cbs = subscribersRef.current.get(channel);
       if (cbs) {
         cbs.delete(cb);
-        console.log("[WS unsubscribe] remaining subs:", cbs.size);
         if (cbs.size === 0) {
           subscribersRef.current.delete(channel);
           channelsRef.current.delete(channel);
           if (wsRef.current?.readyState === WebSocket.OPEN) {
-            console.log("[WS send unsubscribe]", channel);
             wsRef.current.send(JSON.stringify({ action: "unsubscribe", channel }));
           }
         }
